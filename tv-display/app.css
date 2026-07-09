@@ -1,0 +1,280 @@
+/* ── MenuLoop TV Display — Styles ──────────────────────────────────────
+ * Designed for 1920×1080 fullscreen kiosk mode on Android TV boxes.
+ * Absolutely positioned overlays on transparent video background.
+ */
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color: #fff;
+  cursor: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ── App Shell ───────────────────────────────────────────────────────── */
+
+#app {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  transform-origin: top left;
+  overflow: hidden;
+  background: #000;
+}
+
+#video-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── Text Overlays ──────────────────────────────────────────────────── */
+
+#overlay-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.text-zone {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+  line-height: 1.1;
+  text-shadow:
+    0 1px 3px rgba(0,0,0,0.8),
+    0 0 8px rgba(0,0,0,0.5);
+  white-space: nowrap;
+}
+
+.text-zone.sold-out {
+  opacity: 0.6;
+}
+
+.text-zone .item-name {
+  display: inline;
+}
+
+.text-zone .item-price {
+  display: inline;
+  margin-left: 0.4em;
+  font-weight: 600;
+}
+
+.text-zone .sold-out-badge {
+  display: inline-block;
+  background: #e53e3e;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.55em;
+  padding: 0.2em 0.5em;
+  border-radius: 0.3em;
+  margin-left: 0.5em;
+  vertical-align: middle;
+  text-shadow: none;
+  line-height: 1.3;
+}
+
+.text-zone.align-left { text-align: left; }
+.text-zone.align-center { text-align: center; }
+.text-zone.align-right { text-align: right; }
+
+/* ── Failsafe Mode ──────────────────────────────────────────────────── */
+
+#failsafe-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #1a1a2e;
+  z-index: 5;
+}
+
+#failsafe-layer.hidden {
+  display: none;
+}
+
+#failsafe-layer .logo {
+  font-size: 4rem;
+  font-weight: 700;
+  color: #f6ad55;
+  margin-bottom: 1rem;
+}
+
+#failsafe-layer .tagline {
+  font-size: 1.5rem;
+  color: #a0aec0;
+}
+
+#failsafe-layer img {
+  max-width: 400px;
+  margin-bottom: 2rem;
+}
+
+/* ── Connectivity Indicator ─────────────────────────────────────────── */
+
+#connectivity-indicator {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: rgba(0,0,0,0.6);
+  font-size: 11px;
+  color: #a0aec0;
+  opacity: 0.4;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+#connectivity-indicator:hover {
+  opacity: 1;
+}
+
+#connectivity-indicator .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transition: background 0.3s;
+}
+
+#connectivity-indicator .dot.green { background: #48bb78; }
+#connectivity-indicator .dot.yellow { background: #ecc94b; }
+#connectivity-indicator .dot.red { background: #f56565; }
+
+#connectivity-indicator .label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Mode Indicator (subtle, owner-facing only) ────────────────────── */
+
+#mode-indicator {
+  position: fixed;
+  bottom: 4px;
+  right: 4px;
+  z-index: 100;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  opacity: 0.5;
+}
+
+#mode-indicator.online { background: #48bb78; }
+#mode-indicator.degraded { background: #ecc94b; }
+#mode-indicator.failsafe { background: #f56565; }
+
+/* ── Loading Screen ─────────────────────────────────────────────────── */
+
+#loading-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0a1a;
+  z-index: 200;
+  transition: opacity 0.5s;
+}
+
+#loading-screen.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#loading-screen .spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(246,173,85,0.2);
+  border-top-color: #f6ad55;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Debug bar (test mode) ─────────────────────────────────────────── */
+
+#debug-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 300;
+  background: rgba(0,0,0,0.85);
+  color: #a0aec0;
+  font-size: 12px;
+  font-family: 'Courier New', monospace;
+  padding: 6px 12px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+#debug-bar.hidden {
+  display: none;
+}
+
+#debug-bar .dbg-label {
+  color: #68d391;
+  font-weight: 600;
+}
+
+#debug-bar .dbg-btn {
+  background: #2d3748;
+  color: #e2e8f0;
+  border: 1px solid #4a5568;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+#debug-bar .dbg-btn:hover {
+  background: #4a5568;
+}
+
+/* ── Responsive Scaling ─────────────────────────────────────────────── */
+
+/* Scale down for smaller screens while keeping 1920×1080 aspect ratio */
+@media (max-width: 1920px) {
+  #app {
+    width: 100vw;
+    height: 56.25vw; /* 9/16 = 0.5625 */
+    max-height: 100vh;
+    max-width: 177.78vh; /* 16/9 = 1.7778 */
+    margin: auto;
+  }
+}

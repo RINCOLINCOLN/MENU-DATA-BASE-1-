@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#000000">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>MenuLoop — Digital Menu Board</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/assets/fallback.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+
+  <!-- Loading Screen -->
+  <div id="loading-screen">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- Main App Container (1920x1080 viewport) -->
+  <div id="app">
+
+    <!-- Video Layer -->
+    <video id="menu-video"
+           playsinline
+           webkit-playsinline
+           muted
+           autoplay
+           loop
+           preload="auto"
+           data-src=""
+           poster="/assets/fallback.svg">
+    </video>
+
+    <!-- Text Overlay Layer -->
+    <div id="overlay-layer"></div>
+
+    <!-- Failsafe Layer (shown when no data ever synced) -->
+    <div id="failsafe-layer" class="hidden">
+      <div class="logo">🍽 MenuLoop</div>
+      <div class="tagline">Menu Coming Soon</div>
+    </div>
+
+  </div>
+
+  <!-- Mode Indicator (subtle dot, bottom-right, owner-facing) -->
+  <div id="mode-indicator" class="online"></div>
+
+  <!-- Connectivity Indicator (subtle, top-right) -->
+  <div id="connectivity-indicator">
+    <span id="conn-dot" class="dot green"></span>
+    <span id="conn-label" class="label">LIVE</span>
+  </div>
+
+  <!-- Debug Bar (hidden by default, press 'd' to toggle) -->
+  <div id="debug-bar" class="hidden">
+    <span><span class="dbg-label">Mode:</span> <span id="debug-mode">—</span></span>
+    <span><span class="dbg-label">Online:</span> <span id="debug-online">—</span></span>
+    <span><span class="dbg-label">Data:</span> <span id="debug-data">—</span></span>
+    <button class="dbg-btn" onclick="__toggleOffline()">Toggle Offline</button>
+    <button class="dbg-btn" onclick="__simulateData()">Load Test Data</button>
+    <button class="dbg-btn" onclick="__toggleDebug()">Hide Debug</button>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

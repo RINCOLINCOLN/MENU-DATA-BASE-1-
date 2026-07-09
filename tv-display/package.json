@@ -1,0 +1,10 @@
+{
+  "name": "menuloop-tv-display",
+  "version": "1.0.0",
+  "description": "MenuLoop TV Display PWA — offline-first animated menu boards",
+  "private": true,
+  "scripts": {
+    "start": "node serve.js",
+    "test": "echo \"No tests yet\" && exit 0"
+  }
+}
