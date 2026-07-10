@@ -1,9 +1,9 @@
-/* MenuLoop TV Display — Service Worker
+/* Menuvo TV Display — Service Worker
  * Cache-first strategy for video assets, network-first for data
  * Three-tier offline fallback with background sync retry
  */
 
-const CACHE_VERSION = 'menuloop-v1';
+const CACHE_VERSION = 'menuvo-v1';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const VIDEO_CACHE = `${CACHE_VERSION}-video`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
@@ -54,7 +54,7 @@ self.addEventListener('activate', (event) => {
     (async () => {
       const cacheNames = await caches.keys();
       const oldCaches = cacheNames.filter(
-        (name) => name.startsWith('menuloop-') && name !== STATIC_CACHE && name !== VIDEO_CACHE && name !== DATA_CACHE
+        (name) => (name.startsWith('menuvo-') || name.startsWith('menuloop-')) && name !== STATIC_CACHE && name !== VIDEO_CACHE && name !== DATA_CACHE
       );
       await Promise.all(oldCaches.map((name) => caches.delete(name)));
       return self.clients.claim();

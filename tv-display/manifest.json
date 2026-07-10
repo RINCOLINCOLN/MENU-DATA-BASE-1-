@@ -1,7 +1,7 @@
 {
-  "name": "MenuLoop",
-  "short_name": "MenuLoop",
-  "description": "Cinematic animated menu boards for restaurants — plays flawlessly even offline",
+  "name": "Menuvo",
+  "short_name": "Menuvo",
+  "description": "Menuvo — cinematic animated menu boards for restaurants, plays flawlessly even offline",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

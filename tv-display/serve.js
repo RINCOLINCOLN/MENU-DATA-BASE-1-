@@ -63,6 +63,6 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`MenuLoop TV Display server running at http://0.0.0.0:${PORT}`);
+  console.log(`Menuvo TV Display server running at http://0.0.0.0:${PORT}`);
   console.log(`Serving static files from ${PUBLIC_DIR}`);
 });

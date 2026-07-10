@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
   <rect width="400" height="300" fill="#1a1a2e"/>
   <text x="200" y="140" text-anchor="middle" font-family="Arial" font-size="48" fill="#f6ad55">🍽</text>
-  <text x="200" y="190" text-anchor="middle" font-family="Arial" font-size="20" fill="#a0aec0">MenuLoop</text>
+  <text x="200" y="190" text-anchor="middle" font-family="Arial" font-size="20" fill="#a0aec0">Menuvo</text>
   <text x="200" y="215" text-anchor="middle" font-family="Arial" font-size="14" fill="#718096">Menu Board</text>
 </svg>

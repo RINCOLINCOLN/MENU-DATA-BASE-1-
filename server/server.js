@@ -19,7 +19,7 @@ import tvDisplayRoutes from './routes/tvDisplay.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
-const PORT = parseInt(process.env.PORT || '3001', 10);
+const PORT = parseInt(process.env.PORT || '3000', 10);
 
 // Middleware
 app.use(cors());
@@ -28,9 +28,13 @@ app.use(express.json());
 // Serve uploaded files (videos, etc.)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Serve TV Display PWA static files
+// ── Serve the Dashboard (built React app) at root ──
+const dashboardDistPath = path.join(__dirname, '..', 'dashboard', 'dist');
+app.use(express.static(dashboardDistPath));
+
+// ── Serve the TV Display PWA at /tv/ ──
 const tvDisplayPath = path.join(__dirname, '..', 'tv-display');
-app.use(express.static(tvDisplayPath));
+app.use('/tv', express.static(tvDisplayPath));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -50,13 +54,14 @@ app.use('/api', menuItemRoutes);   // routes are /screens/:id/menu-items -> /api
 app.use('/api', scheduleRoutes);   // routes are /screens/:id/schedules -> /api/screens/:id/schedules
 app.use('/api/templates', templateRoutes);
 
-// Fallback: serve index.html for TV display SPA
+// Fallback: serve the dashboard's index.html for client-side routing
 app.get('*', (req, res) => {
   // Don't serve index.html for API routes
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'API endpoint not found' });
   }
-  res.sendFile(path.join(tvDisplayPath, 'index.html'));
+  // Serve dashboard index.html for SPA routing
+  res.sendFile(path.join(dashboardDistPath, 'index.html'));
 });
 
 // Error handling middleware
@@ -78,7 +83,8 @@ getDb();
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Menuvo Server running on http://0.0.0.0:${PORT}`);
   console.log(`API: http://localhost:${PORT}/api/`);
-  console.log(`TV Display: http://localhost:${PORT}/`);
+  console.log(`Dashboard: http://localhost:${PORT}/`);
+  console.log(`TV Display: http://localhost:${PORT}/tv/`);
   console.log(`WebSocket: ws://localhost:${PORT}/ws`);
 });
 

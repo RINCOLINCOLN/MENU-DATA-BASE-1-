@@ -21,7 +21,7 @@ export default function DashboardLayout() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex md:flex-col md:w-64 bg-emerald-900 text-white">
+      <aside className="hidden md:flex md:flex-col md:w-64 lg:w-72 bg-emerald-900 text-white shrink-0">
         <div className="p-5 border-b border-emerald-800">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center">
@@ -29,7 +29,7 @@ export default function DashboardLayout() {
             </div>
             <div>
               <h2 className="font-bold text-sm">Menuvo</h2>
-              <p className="text-emerald-300 text-xs truncate max-w-[140px]">{user?.name || 'Restaurant'}</p>
+              <p className="text-emerald-300 text-xs truncate max-w-[160px]">{user?.name || 'Restaurant'}</p>
             </div>
           </div>
         </div>
@@ -50,7 +50,12 @@ export default function DashboardLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="p-3 border-t border-emerald-800">
+        <div className="p-3 border-t border-emerald-800 space-y-1">
+          <button onClick={() => navigate('/onboarding')}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-emerald-300 hover:bg-emerald-800 hover:text-white w-full transition-colors">
+            <span className="text-lg">🚀</span>
+            Setup Wizard
+          </button>
           <button onClick={handleLogout}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-emerald-300 hover:bg-emerald-800 hover:text-white w-full transition-colors">
             <span className="text-lg">🚪</span>
@@ -105,12 +110,15 @@ export default function DashboardLayout() {
                   {item.label}
                 </NavLink>
               ))}
+              <button onClick={() => { setMobileMenuOpen(false); navigate('/onboarding') }}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-emerald-200 hover:bg-emerald-800 w-full">
+                <span className="text-lg">🚀</span> Setup Wizard
+              </button>
             </nav>
             <div className="mt-6 pt-4 border-t border-emerald-800">
               <button onClick={handleLogout}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-emerald-300 hover:bg-emerald-800 w-full">
-                <span className="text-lg">🚪</span>
-                Sign Out
+                <span className="text-lg">🚪</span> Sign Out
               </button>
             </div>
           </div>
@@ -118,8 +126,8 @@ export default function DashboardLayout() {
       )}
 
       {/* Main Content */}
-      <main className="flex-1 md:ml-64 pb-16 md:pb-0 pt-14 md:pt-0">
-        <div className="max-w-5xl mx-auto p-4 md:p-6">
+      <main className="flex-1 md:ml-0 pb-16 md:pb-0 pt-14 md:pt-0 min-h-screen">
+        <div className="max-w-6xl mx-auto px-4 md:px-8 lg:px-10 py-4 md:py-8">
           <Outlet />
         </div>
       </main>

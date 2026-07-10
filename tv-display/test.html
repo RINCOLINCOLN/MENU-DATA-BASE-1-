@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=1920, initial-scale=1.0">
-  <title>MenuLoop — TV Display Test Suite</title>
+  <title>Menuvo — TV Display Test Suite</title>
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -89,7 +89,7 @@
 </head>
 <body>
 
-  <h1>🧪 MenuLoop TV Display — Test Suite</h1>
+  <h1>🧪 Menuvo TV Display — Test Suite</h1>
   <p>Self-contained tests for offline-first PWA behavior. Open the TV app in the iframe below,
      then use the test controls to simulate network drops, verify caching, and check overlay rendering.</p>
 
@@ -273,7 +273,7 @@
       log('🔍 Test 2: App Shell caching...', 'info');
       try {
         if ('caches' in window) {
-          const cache = await caches.open('menuloop-v1-static');
+          const cache = await caches.open('menuvo-v1-static');
           const cachedIndex = await cache.match('/index.html');
           const cachedCSS = await cache.match('/app.css');
           const cachedJS = await cache.match('/app.js');

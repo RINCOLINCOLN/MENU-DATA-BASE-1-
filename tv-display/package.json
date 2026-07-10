@@ -1,7 +1,7 @@
 {
-  "name": "menuloop-tv-display",
+  "name": "menuvo-tv-display",
   "version": "1.0.0",
-  "description": "MenuLoop TV Display PWA — offline-first animated menu boards",
+  "description": "Menuvo TV Display — offline-first animated menu boards",
   "private": true,
   "scripts": {
     "start": "node serve.js",

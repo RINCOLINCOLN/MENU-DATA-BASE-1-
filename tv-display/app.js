@@ -1,4 +1,4 @@
-/* ── MenuLoop TV Display — Application Logic ───────────────────────────
+/* ── Menuvo TV Display — Application Logic ───────────────────────────
  * Vanilla JS PWA for Android TV kiosk-mode menu boards.
  * Offline-first with three-tier fallback.
  */
@@ -221,7 +221,7 @@
   async function loadFromCache() {
     if (!('caches' in window)) return null;
     try {
-      const cache = await caches.open('menuloop-v1-data');
+      const cache = await caches.open('menuvo-v1-data');
       const request = new Request(`${API_BASE}/screens/${state.slug}/data`);
       const response = await cache.match(request);
       if (response && response.ok) {
