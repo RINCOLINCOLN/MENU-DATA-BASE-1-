@@ -62,6 +62,10 @@ html, body {
     0 1px 3px rgba(0,0,0,0.8),
     0 0 8px rgba(0,0,0,0.5);
   white-space: nowrap;
+  /* Font rendering optimizations for TV displays */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 .text-zone.sold-out {
@@ -95,6 +99,14 @@ html, body {
 .text-zone.align-left { text-align: left; }
 .text-zone.align-center { text-align: center; }
 .text-zone.align-right { text-align: right; }
+
+/* Background highlight for special zones (specials, headers) */
+.text-zone.has-background {
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
 
 /* ── Failsafe Mode ──────────────────────────────────────────────────── */
 

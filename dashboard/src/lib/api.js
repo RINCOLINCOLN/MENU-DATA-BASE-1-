@@ -56,6 +56,11 @@ export const api = {
   // Template (for preview)
   getTemplate: (screenId) => request('GET', `/screens/${screenId}/template`),
 
+  // Template management
+  getTemplates: () => request('GET', '/templates'),
+  getTemplateById: (id) => request('GET', `/templates/${id}`),
+  deleteTemplate: (id) => request('DELETE', `/templates/${id}`),
+
   // Screen Data (for preview — uses slug public endpoint)
   getScreenData: (slug) => request('GET', `/screens/${slug}/data`),
 }

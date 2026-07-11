@@ -8,13 +8,14 @@ const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const VIDEO_CACHE = `${CACHE_VERSION}-video`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 
+const TV_PREFIX = '/tv';
 const PRECACHE_URLS = [
-  '/',
-  '/index.html',
-  '/app.css',
-  '/app.js',
-  '/manifest.json',
-  '/assets/fallback.svg',
+  TV_PREFIX + '/',
+  TV_PREFIX + '/index.html',
+  TV_PREFIX + '/app.css',
+  TV_PREFIX + '/app.js',
+  TV_PREFIX + '/manifest.json',
+  TV_PREFIX + '/assets/fallback.svg',
 ];
 
 /** Maximum age for cached data before we consider it stale (30 seconds) */
@@ -80,7 +81,8 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Static assets use stale-while-revalidate for freshness + speed
-  if (path.match(/\.(css|js|json|png|jpg|jpeg|svg|ico)$/i) || path === '/index.html' || path === '/') {
+  const isIndex = path === '/index.html' || path === TV_PREFIX + '/index.html' || path === '/' || path === TV_PREFIX + '/';
+  if (path.match(/\.(css|js|json|png|jpg|jpeg|svg|ico)$/i) || isIndex) {
     event.respondWith(staleWhileRevalidate(event.request, STATIC_CACHE));
     return;
   }

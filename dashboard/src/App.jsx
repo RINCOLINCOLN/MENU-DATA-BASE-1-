@@ -10,6 +10,7 @@ import MenuPage from './pages/MenuPage'
 import ScreensPage from './pages/ScreensPage'
 import ScreenDetailPage from './pages/ScreenDetailPage'
 import SettingsPage from './pages/SettingsPage'
+import TemplatesPage from './pages/TemplatesPage'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -64,6 +65,7 @@ export default function App() {
         <Route path="screens" element={<ScreensPage />} />
         <Route path="screens/:screenId" element={<ScreenDetailPage />} />
         <Route path="screens/:screenId/menu" element={<MenuPage />} />
+        <Route path="templates" element={<TemplatesPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

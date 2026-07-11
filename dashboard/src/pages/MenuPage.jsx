@@ -11,22 +11,37 @@ export default function MenuPage() {
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState(null)
   const [addOpen, setAddOpen] = useState(false)
+  const [screenUuid, setScreenUuid] = useState(null) // UUID for API calls
+  const [screenSlug, setScreenSlug] = useState(null) // slug for navigation
 
   const token = localStorage.getItem('menuvo_token')
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 
-  const fetchItems = async () => {
+  // Fetch screen to get UUID, then fetch menu items
+  const fetchScreenAndItems = async () => {
     try {
-      const res = await fetch(`/api/screens/${screenId}/menu-items`, { headers })
-      if (res.ok) {
-        const data = await res.json()
-        setItems(data.menu_items || [])
+      // First get the screen to resolve UUID from slug
+      const sRes = await fetch(`/api/screens/${screenId}`, { headers })
+      if (!sRes.ok) { setLoading(false); return }
+      const sData = await sRes.json()
+      const uuid = sData.screen?.id
+      const slug = sData.screen?.unique_slug
+      setScreenUuid(uuid)
+      setScreenSlug(slug)
+
+      // Fetch menu items using UUID
+      if (uuid) {
+        const res = await fetch(`/api/screens/${uuid}/menu-items`, { headers })
+        if (res.ok) {
+          const data = await res.json()
+          setItems(data.menu_items || [])
+        }
       }
     } catch {}
     setLoading(false)
   }
 
-  useEffect(() => { fetchItems() }, [screenId])
+  useEffect(() => { fetchScreenAndItems() }, [screenId])
 
   const handleToggle = async (item) => {
     const newAvail = item.availability === 'sold_out' ? 'available' : 'sold_out'
@@ -38,8 +53,8 @@ export default function MenuPage() {
         headers,
         body: JSON.stringify({ availability: newAvail }),
       })
-      if (!res.ok) { fetchItems(); addToast('Toggle failed', 'error') }
-    } catch { fetchItems(); addToast('Network error', 'error') }
+      if (!res.ok) { fetchScreenAndItems(); addToast('Toggle failed', 'error') }
+    } catch { fetchScreenAndItems(); addToast('Network error', 'error') }
   }
 
   const handleSaveItem = async (itemId, data) => {
@@ -52,7 +67,7 @@ export default function MenuPage() {
       if (res.ok) {
         addToast('Item updated', 'success')
         setEditingId(null)
-        fetchItems()
+        fetchScreenAndItems()
       } else {
         addToast('Save failed', 'error')
       }
@@ -61,7 +76,7 @@ export default function MenuPage() {
 
   const handleAddItem = async (data) => {
     try {
-      const res = await fetch(`/api/screens/${screenId}/menu-items`, {
+      const res = await fetch(`/api/screens/${screenUuid}/menu-items`, {
         method: 'POST',
         headers,
         body: JSON.stringify(data),
@@ -69,7 +84,7 @@ export default function MenuPage() {
       if (res.ok) {
         addToast('Item added', 'success')
         setAddOpen(false)
-        fetchItems()
+        fetchScreenAndItems()
       } else {
         addToast('Failed to add item', 'error')
       }
@@ -82,7 +97,7 @@ export default function MenuPage() {
       const res = await fetch(`/api/menu-items/${itemId}`, { method: 'DELETE', headers })
       if (res.ok) {
         addToast('Item deleted', 'success')
-        fetchItems()
+        fetchScreenAndItems()
       }
     } catch { addToast('Delete failed', 'error') }
   }
@@ -170,6 +185,15 @@ function InlineEditForm({ item, onSave, onCancel }) {
   const [category, setCategory] = useState(item.category || '')
   const [textZoneId, setTextZoneId] = useState(item.text_zone_id || '')
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); onCancel() }
+  }
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   const handleSubmit = (e) => {
     e.preventDefault()
     const body = { name, price: parseFloat(price) || 0, description, category }
@@ -207,6 +231,12 @@ function AddItemModal({ onSave, onClose }) {
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState('')
   const [textZoneId, setTextZoneId] = useState('')
+
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   const handleSubmit = (e) => {
     e.preventDefault()

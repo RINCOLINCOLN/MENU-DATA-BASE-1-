@@ -107,7 +107,7 @@
   // ── Service Worker Registration ─────────────────────────────────────
   function registerSW() {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js')
+      navigator.serviceWorker.register('service-worker.js')
         .then((reg) => {
           console.log('[SW] Registered scope:', reg.scope);
 
@@ -421,7 +421,20 @@
       zoneEl.style.left = (zone.x || 0) + '%';
       zoneEl.style.top = (zone.y || 0) + '%';
 
-      // Determine font size from config with min/max range
+      // Width and height
+      if (zone.width && zone.width !== 'auto') {
+        zoneEl.style.width = (typeof zone.width === 'number' ? zone.width + '%' : zone.width);
+      }
+      if (zone.height && zone.height !== 'auto') {
+        zoneEl.style.height = (typeof zone.height === 'number' ? zone.height + '%' : zone.height);
+      }
+
+      // Font family
+      if (zone.font_family) {
+        zoneEl.style.fontFamily = zone.font_family;
+      }
+
+      // Font size from config with min/max range
       const baseFontSize = zone.font_size || 48;
       const minSize = zone.min_font_size || 24;
       const maxSize = zone.max_font_size || 72;
@@ -430,8 +443,43 @@
       zoneEl.style.color = zone.color || '#ffffff';
       zoneEl.style.fontWeight = zone.font_weight || 'normal';
 
+      // Letter spacing
+      if (zone.letter_spacing && zone.letter_spacing !== 'normal') {
+        zoneEl.style.letterSpacing = zone.letter_spacing;
+      }
+
+      // Text transform
+      if (zone.text_transform && zone.text_transform !== 'none') {
+        zoneEl.style.textTransform = zone.text_transform;
+      }
+
+      // Line height
+      if (zone.line_height) {
+        zoneEl.style.lineHeight = zone.line_height;
+      }
+
+      // Background color
+      if (zone.background_color && zone.background_color !== 'transparent') {
+        zoneEl.style.backgroundColor = zone.background_color;
+        zoneEl.style.padding = zone.padding || '4px 8px';
+        zoneEl.classList.add('has-background');
+        if (zone.border_radius) {
+          zoneEl.style.borderRadius = zone.border_radius;
+        }
+      }
+
+      // Opacity
+      if (zone.opacity !== undefined && zone.opacity < 1) {
+        zoneEl.style.opacity = zone.opacity;
+      }
+
+      // Padding (only if no background or already handled)
+      if ((!zone.background_color || zone.background_color === 'transparent') && zone.padding && zone.padding !== '0') {
+        zoneEl.style.padding = zone.padding;
+      }
+
       // Map items to this zone
-      const zoneItems = zone.item_ids
+      const zoneItems = zone.item_ids && zone.item_ids.length > 0
         ? items.filter((item) => zone.item_ids.includes(item.id))
         : items;
 

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useToast } from '../contexts/ToastContext'
 
 export default function SettingsPage() {
@@ -80,6 +81,17 @@ export default function SettingsPage() {
             {addingLocation ? 'Adding...' : 'Add Location'}
           </button>
         </form>
+      </div>
+
+      {/* Templates */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 className="font-semibold text-gray-900 mb-1">Video Templates</h3>
+        <p className="text-sm text-gray-500 mb-4">
+          Upload MP4 background videos and assign them to your TV screens.
+        </p>
+        <Link to="/dashboard/templates" className="btn-primary inline-flex items-center gap-2">
+          🎬 Manage Templates
+        </Link>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">

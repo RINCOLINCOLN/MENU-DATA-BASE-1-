@@ -109,13 +109,30 @@ router.post('/:id/screens', (req, res) => {
     return res.status(404).json({ error: 'Restaurant not found' });
   }
 
-  const { name, orientation, template_id } = req.body;
+  const { name, orientation, template_id, slug } = req.body;
   if (!name) {
     return res.status(400).json({ error: 'name is required' });
   }
 
   const screenId = uuidv4();
-  const uniqueSlug = uuidv4().replace(/-/g, '').substring(0, 12);
+  // Use provided slug or generate a friendly one from the name
+  let uniqueSlug = slug;
+  if (!uniqueSlug) {
+    uniqueSlug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .substring(0, 50);
+    // If slug is empty after sanitization, fall back to UUID
+    if (!uniqueSlug) {
+      uniqueSlug = uuidv4().replace(/-/g, '').substring(0, 12);
+    }
+  }
+  // Ensure slug is unique
+  const existing = db.prepare('SELECT id FROM screens WHERE unique_slug = ?').get(uniqueSlug);
+  if (existing) {
+    uniqueSlug = `${uniqueSlug}-${uuidv4().replace(/-/g, '').substring(0, 6)}`;
+  }
 
   db.prepare(`
     INSERT INTO screens (id, restaurant_id, name, unique_slug, orientation, template_id)
