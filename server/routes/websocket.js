@@ -18,7 +18,7 @@ export function initWebSocket(server) {
     let connectedSlug = null;
 
     // Send a welcome message
-    ws.send(JSON.stringify({ type: 'connected', message: 'Welcome to Menuvo WebSocket' }));
+    ws.send(JSON.stringify({ type: 'connected', message: 'Welcome to Lumenu WebSocket' }));
 
     ws.on('message', (data) => {
       try {

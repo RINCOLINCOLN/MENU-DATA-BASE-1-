@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'menuvo-dev-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'lumenu-dev-secret-key-change-in-production';
 const JWT_EXPIRES_IN = '7d';
 
 export function signToken(payload) {

@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 
 const db = getDb();
 
-console.log('🌱 Seeding Menuvo demo data...\n');
+console.log('🌱 Seeding Lumenu demo data...\n');
 
 // Clean existing data
 db.exec('DELETE FROM schedules');
@@ -18,13 +18,13 @@ db.exec('DELETE FROM users');
 const ownerId = uuidv4();
 const passwordHash = bcrypt.hashSync('demo1234', 10);
 db.prepare('INSERT INTO users (id, email, password_hash, name) VALUES (?, ?, ?, ?)')
-  .run(ownerId, 'owner@menuvo.app', passwordHash, 'Sarah Chen');
+  .run(ownerId, 'owner@lumenu.app', passwordHash, 'Sarah Chen');
 
 const owner2Id = uuidv4();
 db.prepare('INSERT INTO users (id, email, password_hash, name) VALUES (?, ?, ?, ?)')
   .run(owner2Id, 'marco@trattoria.demo', passwordHash, 'Marco Rossi');
 
-console.log('  ✅ Created demo users (login: owner@menuvo.app / demo1234)');
+console.log('  ✅ Created demo users (login: owner@lumenu.app / demo1234)');
 
 // ── 2. Create restaurants ──
 const cafeId = uuidv4();
@@ -38,22 +38,57 @@ db.prepare('INSERT INTO restaurants (id, user_id, name, logo_url) VALUES (?, ?, 
 console.log('  ✅ Created 2 demo restaurants');
 
 // ── 3. Create templates ──
-const template1Id = uuidv4();
-const template1Config = JSON.stringify([
-  { id: 'zone-menu', x: 0.04, y: 0.18, width: 0.44, height: 0.74, font_size_min: 14, font_size_max: 42, align: 'left', label: 'Main Menu Items' },
-  { id: 'zone-specials', x: 0.52, y: 0.18, width: 0.44, height: 0.74, font_size_min: 14, font_size_max: 38, align: 'left', label: 'Daily Specials' },
-  { id: 'zone-header', x: 0.04, y: 0.02, width: 0.92, height: 0.12, font_size_min: 24, font_size_max: 64, align: 'center', label: 'Header / Restaurant Name' }
-]);
+    const template1Id = uuidv4();
+    const template1Config = JSON.stringify([
+      {
+        id: 'zone-menu', label: 'Main Menu Items', type: 'menu_items',
+        x: 4, y: 18, width: 44, height: 74,
+        alignment: 'left', font_size: 42, min_font_size: 14, max_font_size: 42,
+        color: '#ffffff', font_weight: 'normal',
+        font_family: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+        item_ids: []
+      },
+      {
+        id: 'zone-specials', label: 'Daily Specials', type: 'specials',
+        x: 52, y: 18, width: 44, height: 74,
+        alignment: 'left', font_size: 38, min_font_size: 14, max_font_size: 38,
+        color: '#fc8181', font_weight: 'bold',
+        font_family: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+        item_ids: []
+      },
+      {
+        id: 'zone-header', label: 'Header / Restaurant Name', type: 'header',
+        x: 4, y: 2, width: 92, height: 12,
+        alignment: 'center', font_size: 48, min_font_size: 24, max_font_size: 64,
+        color: '#f6ad55', font_weight: 'bold',
+        font_family: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+        item_ids: []
+      }
+    ]);
 
 db.prepare(`INSERT INTO templates (id, name, video_url, video_duration_ms, orientation, config_json)
   VALUES (?, ?, ?, ?, ?, ?)`)
   .run(template1Id, 'Classic Split Layout', '/uploads/default-background.mp4', 30000, 'landscape', template1Config);
 
 const template2Id = uuidv4();
-const template2Config = JSON.stringify([
-  { id: 'zone-items', x: 0.05, y: 0.15, width: 0.90, height: 0.78, font_size_min: 16, font_size_max: 52, align: 'center', label: 'All Menu Items' },
-  { id: 'zone-tagline', x: 0.05, y: 0.02, width: 0.90, height: 0.10, font_size_min: 18, font_size_max: 36, align: 'center', label: 'Tagline' }
-]);
+    const template2Config = JSON.stringify([
+      {
+        id: 'zone-items', label: 'All Menu Items', type: 'menu_items',
+        x: 5, y: 15, width: 90, height: 78,
+        alignment: 'center', font_size: 38, min_font_size: 16, max_font_size: 52,
+        color: '#ffffff', font_weight: 'normal',
+        font_family: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+        item_ids: []
+      },
+      {
+        id: 'zone-tagline', label: 'Tagline', type: 'header',
+        x: 5, y: 2, width: 90, height: 10,
+        alignment: 'center', font_size: 28, min_font_size: 18, max_font_size: 36,
+        color: '#f6ad55', font_weight: 'bold',
+        font_family: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+        item_ids: []
+      }
+    ]);
 
 db.prepare(`INSERT INTO templates (id, name, video_url, video_duration_ms, orientation, config_json)
   VALUES (?, ?, ?, ?, ?, ?)`)
@@ -150,7 +185,7 @@ console.log('  • 3 screens created with unique slugs');
 console.log(`  • ${itemCount} menu items created (some marked sold_out)`);
 console.log('  • 6 schedules created');
 console.log('\n🔑 Demo login:');
-console.log('  Email:    owner@menuvo.app');
+console.log('  Email:    owner@lumenu.app');
 console.log('  Password: demo1234');
 console.log('\n📺 Test screen slugs:');
 console.log(`  /api/screens/${screen1Slug}/data`);
