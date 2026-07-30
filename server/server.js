@@ -81,7 +81,7 @@ initWebSocket(server);
 getDb();
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Menuvo Server running on http://0.0.0.0:${PORT}`);
+  console.log(`Lumenu Server running on http://0.0.0.0:${PORT}`);
   console.log(`API: http://localhost:${PORT}/api/`);
   console.log(`Dashboard: http://localhost:${PORT}/`);
   console.log(`TV Display: http://localhost:${PORT}/tv/`);
