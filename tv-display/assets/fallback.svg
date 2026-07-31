@@ -26,8 +26,8 @@
   <circle cx="1700" cy="800" r="400" fill="rgba(237,137,54,0.03)"/>
   <circle cx="960" cy="500" r="500" fill="rgba(255,255,255,0.01)"/>
   
-  <!-- Menuvo Logo Text -->
-  <text x="960" y="420" text-anchor="middle" font-family="'Helvetica Neue',Arial,sans-serif" font-size="96" font-weight="700" fill="url(#logo-grad)" filter="url(#glow)">Menuvo</text>
+  <!-- Lumenu Logo Text -->
+  <text x="960" y="420" text-anchor="middle" font-family="'Helvetica Neue',Arial,sans-serif" font-size="96" font-weight="700" fill="url(#logo-grad)" filter="url(#glow)">Lumenu</text>
   
   <!-- Tagline -->
   <text x="960" y="500" text-anchor="middle" font-family="'Helvetica Neue',Arial,sans-serif" font-size="32" font-weight="300" fill="#a0aec0" letter-spacing="6">
