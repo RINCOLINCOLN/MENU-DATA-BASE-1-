@@ -166,13 +166,13 @@ export default function TextZoneEditor({ template, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
+      <div className="bg-brand-surface rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col"
         onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border/50 bg-brand-surface">
           <div>
-            <h3 className="text-lg font-bold text-gray-900">Text Zone Editor</h3>
-            <p className="text-sm text-gray-500">{template.name} · {zones.length} zone{zones.length !== 1 ? 's' : ''}</p>
+            <h3 className="text-lg font-bold text-brand-text">Text Zone Editor</h3>
+            <p className="text-sm text-brand-muted">{template.name} · {zones.length} zone{zones.length !== 1 ? 's' : ''}</p>
           </div>
           <div className="flex gap-2">
             <button onClick={addZone} className="btn-primary text-sm flex items-center gap-1">+ Add Zone</button>
@@ -182,7 +182,7 @@ export default function TextZoneEditor({ template, onClose, onSaved }) {
 
         <div className="flex flex-1 overflow-hidden">
           {/* Canvas */}
-          <div className="flex-1 bg-gray-900 p-4 flex items-center justify-center">
+          <div className="flex-1 bg-brand-bg p-4 flex items-center justify-center">
             <div ref={canvasRef} className="relative bg-black w-full max-w-4xl aspect-video rounded-lg overflow-hidden shadow-lg"
               style={{
                 backgroundImage: template?.video_url ? `url(${template.video_url})` : undefined,
@@ -197,7 +197,7 @@ export default function TextZoneEditor({ template, onClose, onSaved }) {
                   onMouseDown={e => { setSelectedId(zone.id); startDrag(e, zone.id) }}
                   onTouchStart={e => { setSelectedId(zone.id); startDrag(e, zone.id) }}
                   className={`absolute border-2 cursor-move transition-colors ${
-                    selectedId === zone.id ? 'border-brand-500 bg-brand-500/15' : 'border-white/40 hover:border-white/60 bg-white/5'
+                    selectedId === zone.id ? 'border-brand-500 bg-brand-500/15' : 'border-brand-border/40 hover:border-brand-border/60 bg-brand-surface/5'
                   }`}
                   style={{
                     left: `${zone.x}%`, top: `${zone.y}%`,
@@ -228,13 +228,13 @@ export default function TextZoneEditor({ template, onClose, onSaved }) {
           </div>
 
           {/* Properties Panel */}
-          <div className="w-80 border-l border-gray-200 overflow-y-auto p-4 space-y-4 bg-gray-50">
+          <div className="w-80 border-l border-brand-border/50 overflow-y-auto p-4 space-y-4 bg-brand-surface-alt">
             {selectedZone ? (
               <>
                 <div>
                   <div className="flex items-center justify-between">
-                    <h4 className="font-semibold text-gray-900 text-sm">Zone Properties</h4>
-                    <span className="text-xs text-gray-400 font-mono">{selectedZone.id.split('-').pop()}</span>
+                    <h4 className="font-semibold text-brand-text text-sm">Zone Properties</h4>
+                    <span className="text-xs text-brand-muted/60 font-mono">{selectedZone.id.split('-').pop()}</span>
                   </div>
                   <input className="input-field text-sm mt-2" placeholder="Zone label"
                     value={selectedZone.label || ''}
@@ -272,7 +272,7 @@ export default function TextZoneEditor({ template, onClose, onSaved }) {
                     {ALIGNMENTS.map(a => (
                       <button key={a} onClick={() => updateZone(selectedZone.id, { alignment: a })}
                         className={`flex-1 py-1.5 rounded text-xs font-medium border ${
-                          selectedZone.alignment === a ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-gray-200 text-gray-500'
+                          selectedZone.alignment === a ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-brand-border/50 text-brand-muted'
                         }`}>{a === 'left' ? '≡ Left' : a === 'center' ? '≡ Center' : '≡ Right'}</button>
                     ))}
                   </div>
@@ -327,11 +327,11 @@ export default function TextZoneEditor({ template, onClose, onSaved }) {
                   <div className="flex gap-2">
                     <button onClick={() => updateZone(selectedZone.id, { font_weight: 'normal' })}
                       className={`flex-1 py-1.5 rounded text-xs font-medium border ${
-                        selectedZone.font_weight === 'normal' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-gray-200 text-gray-500'
+                        selectedZone.font_weight === 'normal' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-brand-border/50 text-brand-muted'
                       }`}>Normal</button>
                     <button onClick={() => updateZone(selectedZone.id, { font_weight: 'bold' })}
                       className={`flex-1 py-1.5 rounded text-xs font-bold border ${
-                        selectedZone.font_weight === 'bold' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-gray-200 text-gray-500'
+                        selectedZone.font_weight === 'bold' ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-brand-border/50 text-brand-muted'
                       }`}>Bold</button>
                   </div>
                 </div>
@@ -359,7 +359,7 @@ export default function TextZoneEditor({ template, onClose, onSaved }) {
                     {BG_COLORS.map(({ label, color }) => (
                       <button key={label} title={label}
                         onClick={() => updateZone(selectedZone.id, { bg_color: color })}
-                        className={`w-7 h-7 rounded-full border-2 ${selectedZone.bg_color === color ? 'border-gray-900 scale-110 ring-2 ring-brand-500' : 'border-gray-300'} ${!color ? 'flex items-center justify-center text-[8px] font-bold text-gray-400' : ''}`}
+                        className={`w-7 h-7 rounded-full border-2 ${selectedZone.bg_color === color ? 'border-gray-900 scale-110 ring-2 ring-brand-500' : 'border-gray-300'} ${!color ? 'flex items-center justify-center text-[8px] font-bold text-brand-muted/60' : ''}`}
                         style={{ backgroundColor: color || '#fff' }}>
                         {!color ? 'X' : ''}
                       </button>
@@ -371,14 +371,14 @@ export default function TextZoneEditor({ template, onClose, onSaved }) {
                 </div>
 
                 {/* Price Box Toggle */}
-                <div className="bg-white rounded-lg border border-gray-200 p-3">
+                <div className="bg-brand-surface rounded-lg border border-brand-border/50 p-3">
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input type="checkbox" checked={selectedZone.is_price || false}
                       onChange={e => updateZone(selectedZone.id, { is_price: e.target.checked })}
-                      className="w-4 h-4 text-green-500 rounded" />
+                      className="w-4 h-4 text-green-400 rounded" />
                     <div>
-                      <span className="text-sm font-medium text-gray-700">💰 Price Box Highlighting</span>
-                      <p className="text-xs text-gray-400">Displays prices on a green background</p>
+                      <span className="text-sm font-medium text-brand-text/80">💰 Price Box Highlighting</span>
+                      <p className="text-xs text-brand-muted/60">Displays prices on a green background</p>
                     </div>
                   </label>
                 </div>
@@ -392,14 +392,14 @@ export default function TextZoneEditor({ template, onClose, onSaved }) {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2 pt-2 border-t border-gray-200">
+                <div className="flex gap-2 pt-2 border-t border-brand-border/50">
                   <button onClick={() => moveZone(selectedZone.id, 'up')} className="btn-secondary text-xs flex-1 py-1.5">↑ Up</button>
                   <button onClick={() => moveZone(selectedZone.id, 'down')} className="btn-secondary text-xs flex-1 py-1.5">↓ Down</button>
                   <button onClick={() => deleteZone(selectedZone.id)} className="btn-danger text-xs flex-1 py-1.5">🗑 Delete</button>
                 </div>
               </>
             ) : (
-              <div className="text-center py-12 text-gray-400 text-sm">
+              <div className="text-center py-12 text-brand-muted/60 text-sm">
                 <div className="text-3xl mb-2">👆</div>
                 Select a zone on the canvas to edit
               </div>
@@ -408,8 +408,8 @@ export default function TextZoneEditor({ template, onClose, onSaved }) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-between bg-white">
-          <div className="text-xs text-gray-400">
+        <div className="px-6 py-3 border-t border-brand-border/50 flex items-center justify-between bg-brand-surface">
+          <div className="text-xs text-brand-muted/60">
             Drag zones to position · Corner handle to resize · Double-tap zone to select
           </div>
           <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2">

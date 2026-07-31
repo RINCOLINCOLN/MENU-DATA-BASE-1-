@@ -108,43 +108,43 @@ export default function MenuPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <button onClick={() => navigate(`/dashboard/screens/${screenId}`)}
-          className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">← Back</button>
+          className="p-2 hover:bg-brand-surface-alt/70 rounded-lg text-brand-muted">← Back</button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-900">Edit Menu</h1>
-          <p className="text-sm text-gray-500">Screen ID: {screenId?.substring(0, 8)}...</p>
+          <h1 className="text-2xl font-bold text-brand-text">Edit Menu</h1>
+          <p className="text-sm text-brand-muted">Screen ID: {screenId?.substring(0, 8)}...</p>
         </div>
         <button onClick={() => setAddOpen(true)}
           className="btn-primary flex items-center gap-1.5">+ Add Item</button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900">Menu Items</h3>
-          <span className="text-sm text-gray-400">{items.length} items</span>
+      <div className="bg-brand-surface rounded-xl shadow-sm border border-brand-border/40 overflow-hidden">
+        <div className="px-5 py-3 border-b border-brand-border/40 flex items-center justify-between">
+          <h3 className="font-semibold text-brand-text">Menu Items</h3>
+          <span className="text-sm text-brand-muted/60">{items.length} items</span>
         </div>
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-brand-border/20">
           {items.length === 0 ? (
-            <div className="p-8 text-center text-gray-400 text-sm">
+            <div className="p-8 text-center text-brand-muted/60 text-sm">
               No items yet. Click "Add Item" to get started.
             </div>
           ) : (
             items.map((item, idx) => (
-              <div key={item.id} className="px-5 py-3.5 hover:bg-gray-50">
+              <div key={item.id} className="px-5 py-3.5 hover:bg-brand-surface-alt/50">
                 {editingId === item.id ? (
                   <InlineEditForm item={item}
                     onSave={(data) => handleSaveItem(item.id, data)}
                     onCancel={() => setEditingId(null)} />
                 ) : (
                   <div className="flex items-center gap-4">
-                    <span className="text-xs text-gray-400 w-6">{idx + 1}</span>
+                    <span className="text-xs text-brand-muted/60 w-6">{idx + 1}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <h4 className="font-medium text-gray-900">{item.name}</h4>
+                        <h4 className="font-medium text-brand-text">{item.name}</h4>
                         {item.availability === 'sold_out' && <span className="badge-red text-xs">Sold Out</span>}
                       </div>
-                      <div className="text-sm text-gray-500 truncate">{item.description || ''}</div>
-                      <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400">
-                        <span className="font-semibold text-gray-700">${parseFloat(item.price || 0).toFixed(2)}</span>
+                      <div className="text-sm text-brand-muted truncate">{item.description || ''}</div>
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-brand-muted/60">
+                        <span className="font-semibold text-brand-text/80">${parseFloat(item.price || 0).toFixed(2)}</span>
                         {item.category && <span>· {item.category}</span>}
                         {item.text_zone_id && <span>· Zone: {item.text_zone_id}</span>}
                       </div>
@@ -153,13 +153,13 @@ export default function MenuPage() {
                       <button onClick={() => handleToggle(item)}
                         className={`h-8 px-3 rounded-lg text-xs font-bold ${
                           item.availability === 'sold_out'
-                            ? 'bg-green-500 hover:bg-green-600 text-white'
+                            ? 'bg-green-400 hover:bg-green-500 text-white'
                             : 'bg-red-500 hover:bg-red-600 text-white'
                         }`}>
                         {item.availability === 'sold_out' ? 'Avail' : 'Sold'}
                       </button>
                       <button onClick={() => setEditingId(item.id)}
-                        className="p-1.5 hover:bg-gray-200 rounded text-gray-500">✏️</button>
+                        className="p-1.5 hover:bg-gray-200 rounded text-brand-muted">✏️</button>
                       <button onClick={() => handleDelete(item.id)}
                         className="p-1.5 hover:bg-red-100 rounded text-red-400">🗑️</button>
                     </div>
@@ -247,8 +247,8 @@ function AddItemModal({ onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-bold text-gray-900 mb-4">Add Menu Item</h3>
+      <div className="bg-brand-surface rounded-2xl w-full max-w-md p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-bold text-brand-text mb-4">Add Menu Item</h3>
         <form onSubmit={handleSubmit} className="space-y-3">
           <input className="input-field" placeholder="Item name" value={name}
             onChange={e => setName(e.target.value)} required autoFocus />

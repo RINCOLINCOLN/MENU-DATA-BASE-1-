@@ -49,16 +49,16 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-500 mt-1 text-sm">Manage your account and locations</p>
+        <h1 className="text-2xl font-bold text-brand-text">Settings</h1>
+        <p className="text-brand-muted mt-1 text-sm">Manage your account and locations</p>
       </div>
 
       {/* Profile Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="font-semibold text-gray-900 mb-4">Profile</h3>
+      <div className="bg-brand-surface rounded-xl shadow-sm border border-brand-border/40 p-6">
+        <h3 className="font-semibold text-brand-text mb-4">Profile</h3>
         <form onSubmit={handleSaveProfile} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <label className="block text-sm font-medium text-brand-text/80 mb-1">Name</label>
             <input className="input-field" value={name} onChange={e => setName(e.target.value)} />
           </div>
           <button type="submit" disabled={saving} className="btn-primary">
@@ -68,12 +68,12 @@ export default function SettingsPage() {
       </div>
 
       {/* Add Location */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="font-semibold text-gray-900 mb-1">Add Restaurant Location</h3>
-        <p className="text-sm text-gray-500 mb-4">Add a new restaurant or location to manage.</p>
+      <div className="bg-brand-surface rounded-xl shadow-sm border border-brand-border/40 p-6">
+        <h3 className="font-semibold text-brand-text mb-1">Add Restaurant Location</h3>
+        <p className="text-sm text-brand-muted mb-4">Add a new restaurant or location to manage.</p>
         <form onSubmit={handleAddLocation} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Restaurant Name</label>
+            <label className="block text-sm font-medium text-brand-text/80 mb-1">Restaurant Name</label>
             <input className="input-field" placeholder="e.g. Joe's Pizza Downtown"
               value={newLocationName} onChange={e => setNewLocationName(e.target.value)} required />
           </div>
@@ -84,9 +84,9 @@ export default function SettingsPage() {
       </div>
 
       {/* Templates */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="font-semibold text-gray-900 mb-1">Video Templates</h3>
-        <p className="text-sm text-gray-500 mb-4">
+      <div className="bg-brand-surface rounded-xl shadow-sm border border-brand-border/40 p-6">
+        <h3 className="font-semibold text-brand-text mb-1">Video Templates</h3>
+        <p className="text-sm text-brand-muted mb-4">
           Upload MP4 background videos and assign them to your TV screens.
         </p>
         <Link to="/dashboard/templates" className="btn-primary inline-flex items-center gap-2">
@@ -94,8 +94,8 @@ export default function SettingsPage() {
         </Link>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="font-semibold text-gray-900 mb-1">Account</h3>
+      <div className="bg-brand-surface rounded-xl shadow-sm border border-brand-border/40 p-6">
+        <h3 className="font-semibold text-brand-text mb-1">Account</h3>
         <button onClick={() => { localStorage.removeItem('menuvo_token'); window.location.href = '/login' }}
           className="btn-danger">Sign Out</button>
       </div>

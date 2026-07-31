@@ -90,10 +90,10 @@ export default function DashboardHome() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+          <h1 className="text-2xl md:text-3xl font-heading font-bold text-brand-text">
             Welcome{user?.name ? `, ${user.name}` : ''} 👋
           </h1>
-          <p className="text-gray-500 mt-1">Monitor your screens and menus at a glance</p>
+          <p className="text-brand-muted mt-1">Monitor your screens and menus at a glance</p>
         </div>
         {restaurants.length > 0 && (
           <div className="flex gap-2">
@@ -105,87 +105,89 @@ export default function DashboardHome() {
         )}
       </div>
 
-      {/* Summary Cards - richer metrics */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+        <div className="bg-brand-surface rounded-xl p-4 md:p-5 shadow-sm border border-brand-border/40 hover:border-brand-border/70 hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Restaurants</p>
+            <p className="text-sm text-brand-muted">Restaurants</p>
             <span className="text-lg">🏪</span>
           </div>
-          <p className="text-2xl md:text-3xl font-bold text-gray-900 mt-2">{restaurants.length}</p>
+          <p className="text-2xl md:text-3xl font-bold text-brand-text mt-2">{restaurants.length}</p>
         </div>
-        <div className="bg-white rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+        <div className="bg-brand-surface rounded-xl p-4 md:p-5 shadow-sm border border-brand-border/40 hover:border-brand-border/70 hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Screens</p>
+            <p className="text-sm text-brand-muted">Screens</p>
             <span className="text-lg">🖥️</span>
           </div>
-          <p className="text-2xl md:text-3xl font-bold text-gray-900 mt-2">{totalCount}</p>
-          <p className="text-xs text-gray-400 mt-1">{avgItemsPerScreen} items/screen avg</p>
+          <p className="text-2xl md:text-3xl font-bold text-brand-text mt-2">{totalCount}</p>
+          <p className="text-xs text-brand-muted/60 mt-1">{avgItemsPerScreen} items/screen avg</p>
         </div>
-        <div className="bg-white rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+        <div className="bg-brand-surface rounded-xl p-4 md:p-5 shadow-sm border border-brand-border/40 hover:border-brand-border/70 hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Online</p>
-            <span className={`inline-block w-3 h-3 rounded-full ${onlineCount > 0 ? 'bg-green-500' : 'bg-gray-300'}`} />
+            <p className="text-sm text-brand-muted">Online</p>
+            <span className={`inline-block w-3 h-3 rounded-full ${onlineCount > 0 ? 'bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.5)]' : 'bg-gray-600'}`} />
           </div>
-          <p className="text-2xl md:text-3xl font-bold text-green-600 mt-2">{onlineCount} / {totalCount}</p>
-          <p className="text-xs text-gray-400 mt-1">{totalCount > 0 ? Math.round(onlineCount / totalCount * 100) : 0}% uptime</p>
+          <p className={`text-2xl md:text-3xl font-bold mt-2 ${onlineCount > 0 ? 'text-green-400' : 'text-brand-muted'}`}>
+            {onlineCount} / {totalCount}
+          </p>
+          <p className="text-xs text-brand-muted/60 mt-1">{totalCount > 0 ? Math.round(onlineCount / totalCount * 100) : 0}% uptime</p>
         </div>
-        <div className="bg-white rounded-xl p-4 md:p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+        <div className="bg-brand-surface rounded-xl p-4 md:p-5 shadow-sm border border-brand-border/40 hover:border-brand-border/70 hover:shadow-md transition-all">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">Items</p>
+            <p className="text-sm text-brand-muted">Items</p>
             <span className="text-lg">📝</span>
           </div>
-          <p className="text-2xl md:text-3xl font-bold text-gray-900 mt-2">{totalItemsCount}</p>
-          <p className="text-xs text-red-500 mt-1">{soldOutCount} sold out</p>
+          <p className="text-2xl md:text-3xl font-bold text-brand-text mt-2">{totalItemsCount}</p>
+          <p className="text-xs text-red-400 mt-1">{soldOutCount} sold out</p>
         </div>
       </div>
 
-      {/* Screen Health Grid */}
+      {/* Screen Health Table */}
       {allScreens.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="bg-brand-surface rounded-xl shadow-sm border border-brand-border/40 overflow-hidden">
+          <div className="px-5 py-4 border-b border-brand-border/40 flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-gray-900">Screen Health</h3>
-              <p className="text-xs text-gray-400 mt-0.5">Real-time status of all your TV displays</p>
+              <h3 className="font-heading font-semibold text-brand-text">Screen Health</h3>
+              <p className="text-xs text-brand-muted/60 mt-0.5">Real-time status of all your TV displays</p>
             </div>
           </div>
-          {/* Desktop grid */}
+          {/* Desktop table */}
           <div className="hidden md:overflow-x-auto md:block">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left px-5 py-3 font-medium text-gray-500">Screen</th>
-                  <th className="text-left px-5 py-3 font-medium text-gray-500">Location</th>
-                  <th className="text-left px-5 py-3 font-medium text-gray-500">Status</th>
-                  <th className="text-left px-5 py-3 font-medium text-gray-500">Items</th>
-                  <th className="text-left px-5 py-3 font-medium text-gray-500">Last Synced</th>
-                  <th className="text-left px-5 py-3 font-medium text-gray-500">Orientation</th>
+                <tr className="border-b border-brand-border/40 bg-brand-surface-alt">
+                  <th className="text-left px-5 py-3 font-medium text-brand-muted">Screen</th>
+                  <th className="text-left px-5 py-3 font-medium text-brand-muted">Location</th>
+                  <th className="text-left px-5 py-3 font-medium text-brand-muted">Status</th>
+                  <th className="text-left px-5 py-3 font-medium text-brand-muted">Items</th>
+                  <th className="text-left px-5 py-3 font-medium text-brand-muted">Last Synced</th>
+                  <th className="text-left px-5 py-3 font-medium text-brand-muted">Orientation</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-brand-border/20">
                 {allScreens.map(s => {
                   const h = healthData[s.unique_slug]
                   const isOnline = h?.is_online ?? true
                   const itemCount = allItems.filter(i => i.screenUuid === s.id).length
                   return (
-                    <tr key={s.id} className="hover:bg-gray-50 transition-colors cursor-pointer"
+                    <tr key={s.id} className="hover:bg-brand-surface-alt/50 transition-colors cursor-pointer"
                       onClick={() => navigate(`/dashboard/screens/${s.unique_slug}`)}>
                       <td className="px-5 py-3">
-                        <span className="font-medium text-gray-900">{s.name}</span>
+                        <span className="font-medium text-brand-text">{s.name}</span>
                       </td>
-                      <td className="px-5 py-3 text-gray-500">{s.restaurantName}</td>
+                      <td className="px-5 py-3 text-brand-muted">{s.restaurantName}</td>
                       <td className="px-5 py-3">
-                        <span className={`inline-flex items-center gap-1.5 ${isOnline ? 'text-green-600' : 'text-red-500'}`}>
-                          <span className={`inline-block w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} />
+                        <span className={`inline-flex items-center gap-1.5 ${isOnline ? 'text-green-400' : 'text-red-400'}`}>
+                          <span className={`inline-block w-2 h-2 rounded-full ${isOnline ? 'bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.5)]' : 'bg-red-400'}`} />
                           {isOnline ? 'Online' : 'Offline'}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-gray-500">{itemCount}</td>
-                      <td className="px-5 py-3 text-gray-400">
+                      <td className="px-5 py-3 text-brand-muted">{itemCount}</td>
+                      <td className="px-5 py-3 text-brand-muted/60">
                         {h?.last_sync_at ? timeAgo(h.last_sync_at) : 'Never'}
                       </td>
                       <td className="px-5 py-3">
-                        <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full text-gray-500">
+                        <span className="text-xs bg-brand-surface-alt px-2 py-0.5 rounded-full text-brand-muted">
                           {s.orientation || 'landscape'}
                         </span>
                       </td>
@@ -196,7 +198,7 @@ export default function DashboardHome() {
             </table>
           </div>
           {/* Mobile cards */}
-          <div className="md:hidden divide-y divide-gray-100">
+          <div className="md:hidden divide-y divide-brand-border/20">
             {allScreens.map(s => {
               const h = healthData[s.unique_slug]
               const isOnline = h?.is_online ?? true
@@ -204,17 +206,17 @@ export default function DashboardHome() {
                 <div key={s.id} className="px-5 py-3 flex items-center justify-between"
                   onClick={() => navigate(`/dashboard/screens/${s.unique_slug}`)}>
                   <div>
-                    <p className="font-medium text-gray-900 text-sm">{s.name}</p>
-                    <p className="text-xs text-gray-400">{s.restaurantName}</p>
+                    <p className="font-medium text-brand-text text-sm">{s.name}</p>
+                    <p className="text-xs text-brand-muted/60">{s.restaurantName}</p>
                   </div>
                   <div className="text-right">
                     <span className={`inline-flex items-center gap-1 text-xs font-medium ${
-                      isOnline ? 'text-green-600' : 'text-red-500'
+                      isOnline ? 'text-green-400' : 'text-red-400'
                     }`}>
-                      <span className={`inline-block w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} />
+                      <span className={`inline-block w-2 h-2 rounded-full ${isOnline ? 'bg-green-400' : 'bg-red-400'}`} />
                       {isOnline ? 'Online' : 'Offline'}
                     </span>
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <p className="text-xs text-brand-muted/60 mt-0.5">
                       {h?.last_sync_at ? timeAgo(h.last_sync_at) : ''}
                     </p>
                   </div>
@@ -225,36 +227,36 @@ export default function DashboardHome() {
         </div>
       )}
 
-      {/* Menu Items Data Table (desktop only) */}
+      {/* Menu Items Table */}
       {allItems.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h3 className="font-semibold text-gray-900">All Menu Items</h3>
-            <p className="text-xs text-gray-400 mt-0.5">{totalItemsCount} items across {totalCount} screens</p>
+        <div className="bg-brand-surface rounded-xl shadow-sm border border-brand-border/40 overflow-hidden">
+          <div className="px-5 py-4 border-b border-brand-border/40">
+            <h3 className="font-heading font-semibold text-brand-text">All Menu Items</h3>
+            <p className="text-xs text-brand-muted/60 mt-0.5">{totalItemsCount} items across {totalCount} screens</p>
           </div>
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left px-5 py-3 font-medium text-gray-500">Name</th>
-                  <th className="text-left px-5 py-3 font-medium text-gray-500">Screen</th>
-                  <th className="text-left px-5 py-3 font-medium text-gray-500">Category</th>
-                  <th className="text-right px-5 py-3 font-medium text-gray-500">Price</th>
-                  <th className="text-left px-5 py-3 font-medium text-gray-500">Zone</th>
-                  <th className="text-center px-5 py-3 font-medium text-gray-500">Status</th>
+                <tr className="border-b border-brand-border/40 bg-brand-surface-alt">
+                  <th className="text-left px-5 py-3 font-medium text-brand-muted">Name</th>
+                  <th className="text-left px-5 py-3 font-medium text-brand-muted">Screen</th>
+                  <th className="text-left px-5 py-3 font-medium text-brand-muted">Category</th>
+                  <th className="text-right px-5 py-3 font-medium text-brand-muted">Price</th>
+                  <th className="text-left px-5 py-3 font-medium text-brand-muted">Zone</th>
+                  <th className="text-center px-5 py-3 font-medium text-brand-muted">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-brand-border/20">
                 {allItems.map((item, i) => (
-                  <tr key={item.id || i} className="hover:bg-gray-50 transition-colors cursor-pointer"
+                  <tr key={item.id || i} className="hover:bg-brand-surface-alt/50 transition-colors cursor-pointer"
                     onClick={() => navigate(`/dashboard/screens/${item.screenSlug}/menu`)}>
-                    <td className="px-5 py-3 font-medium text-gray-900">{item.name}</td>
-                    <td className="px-5 py-3 text-gray-500">{item.screenName}</td>
-                    <td className="px-5 py-3 text-gray-500">{item.category || '—'}</td>
-                    <td className="px-5 py-3 text-right font-semibold text-gray-700">
+                    <td className="px-5 py-3 font-medium text-brand-text">{item.name}</td>
+                    <td className="px-5 py-3 text-brand-muted">{item.screenName}</td>
+                    <td className="px-5 py-3 text-brand-muted">{item.category || '—'}</td>
+                    <td className="px-5 py-3 text-right font-semibold text-brand-text/80">
                       ${parseFloat(item.price || 0).toFixed(2)}
                     </td>
-                    <td className="px-5 py-3 text-gray-400 text-xs">{item.text_zone_id || '—'}</td>
+                    <td className="px-5 py-3 text-brand-muted/60 text-xs">{item.text_zone_id || '—'}</td>
                     <td className="px-5 py-3 text-center">
                       <span className={`badge ${item.availability === 'sold_out' ? 'badge-red' : 'badge-green'}`}>
                         {item.availability === 'sold_out' ? 'Sold Out' : 'Available'}
@@ -266,15 +268,15 @@ export default function DashboardHome() {
             </table>
           </div>
           {/* Mobile list */}
-          <div className="md:hidden divide-y divide-gray-100">
+          <div className="md:hidden divide-y divide-brand-border/20">
             {allItems.slice(0, 8).map((item, i) => (
               <div key={i} className="px-5 py-3 flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-gray-900 text-sm">{item.name}</p>
-                  <p className="text-xs text-gray-400">{item.screenName}{item.category ? ` · ${item.category}` : ''}</p>
+                  <p className="font-medium text-brand-text text-sm">{item.name}</p>
+                  <p className="text-xs text-brand-muted/60">{item.screenName}{item.category ? ` · ${item.category}` : ''}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-gray-700">${parseFloat(item.price || 0).toFixed(2)}</p>
+                  <p className="font-semibold text-brand-text/80">${parseFloat(item.price || 0).toFixed(2)}</p>
                   {item.availability === 'sold_out' && <span className="badge-red text-xs">Sold Out</span>}
                 </div>
               </div>
@@ -283,12 +285,12 @@ export default function DashboardHome() {
         </div>
       )}
 
-      {/* Empty state with onboarding */}
+      {/* Empty state */}
       {restaurants.length === 0 && (
-        <div className="bg-white rounded-xl p-8 md:p-12 text-center shadow-sm border border-gray-100">
+        <div className="bg-brand-surface rounded-xl p-8 md:p-12 text-center shadow-sm border border-brand-border/40">
           <div className="text-5xl mb-4">🏪</div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Welcome to Lumenu!</h3>
-          <p className="text-gray-500 mb-6 max-w-md mx-auto">
+          <h3 className="text-xl font-heading font-bold text-brand-text mb-2">Welcome to Lumenu!</h3>
+          <p className="text-brand-muted mb-6 max-w-md mx-auto">
             Get started with our quick setup wizard — it only takes a few minutes.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -299,9 +301,8 @@ export default function DashboardHome() {
       )}
 
       {/* Keyboard shortcuts footer */}
-      <div className="hidden md:block text-center text-xs text-gray-400 pt-2">
-        <span
-          className="inline-flex items-center gap-1 bg-gray-100 px-2 py-1 rounded cursor-default">
+      <div className="hidden md:block text-center text-xs text-brand-muted/40 pt-2">
+        <span className="inline-flex items-center gap-1 bg-brand-surface-alt px-2 py-1 rounded cursor-default">
           <kbd className="font-mono">?</kbd> Keyboard shortcuts
         </span>
       </div>

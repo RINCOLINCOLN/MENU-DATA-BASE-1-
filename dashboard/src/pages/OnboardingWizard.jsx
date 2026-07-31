@@ -78,9 +78,9 @@ export default function OnboardingWizard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden">
+      <div className="w-full max-w-2xl bg-brand-surface rounded-2xl shadow-2xl overflow-hidden">
         {/* Progress bar */}
-        <div className="h-1.5 bg-gray-100">
+        <div className="h-1.5 bg-brand-surface-alt/70">
           <div className="h-full bg-brand-500 transition-all duration-500" style={{ width: `${progress}%` }} />
         </div>
 
@@ -90,7 +90,7 @@ export default function OnboardingWizard() {
             {STEPS.map((s, i) => (
               <div key={s} className="flex items-center gap-2">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-                  i <= step ? 'bg-brand-500 text-white' : 'bg-gray-200 text-gray-400'
+                  i <= step ? 'bg-brand-500 text-white' : 'bg-gray-200 text-brand-muted/60'
                 }`}>{i + 1}</div>
                 {i < STEPS.length - 1 && <div className={`w-8 h-0.5 ${i < step ? 'bg-brand-500' : 'bg-gray-200'}`} />}
               </div>
@@ -98,7 +98,7 @@ export default function OnboardingWizard() {
           </div>
 
           {/* Step title */}
-          <h2 className="text-center text-sm font-medium text-gray-400 mb-6 uppercase tracking-wider">
+          <h2 className="text-center text-sm font-medium text-brand-muted/60 mb-6 uppercase tracking-wider">
             Step {step + 1} of {STEPS.length}: {STEPS[step]}
           </h2>
 
@@ -117,8 +117,8 @@ export default function OnboardingWizard() {
           )}
 
           {/* Skip button (always visible) */}
-          <div className="text-center mt-6 pt-4 border-t border-gray-100">
-            <button onClick={handleSkip} className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
+          <div className="text-center mt-6 pt-4 border-t border-brand-border/40">
+            <button onClick={handleSkip} className="text-sm text-brand-muted/60 hover:text-gray-600 transition-colors">
               Skip setup → Go to Dashboard
             </button>
           </div>
@@ -135,8 +135,8 @@ function RestaurantStep({ onNext, loading, onSkip }) {
     <div className="py-4">
       <div className="text-center mb-6">
         <div className="text-4xl mb-3">🏪</div>
-        <h3 className="text-xl font-bold text-gray-900">Name Your Restaurant</h3>
-        <p className="text-gray-500 text-sm mt-1">What's your restaurant called?</p>
+        <h3 className="text-xl font-bold text-brand-text">Name Your Restaurant</h3>
+        <p className="text-brand-muted text-sm mt-1">What's your restaurant called?</p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4 max-w-md mx-auto">
         <input className="input-field text-lg py-3 text-center" placeholder="e.g. Joe's Pizza"
@@ -159,8 +159,8 @@ function ScreenStep({ onNext, loading }) {
     <div className="py-4">
       <div className="text-center mb-6">
         <div className="text-4xl mb-3">🖥️</div>
-        <h3 className="text-xl font-bold text-gray-900">Add Your Screen</h3>
-        <p className="text-gray-500 text-sm mt-1">Name the TV display for your menu</p>
+        <h3 className="text-xl font-bold text-brand-text">Add Your Screen</h3>
+        <p className="text-brand-muted text-sm mt-1">Name the TV display for your menu</p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4 max-w-md mx-auto">
         <input className="input-field text-lg py-3 text-center" placeholder="e.g. Main Board"
@@ -169,7 +169,7 @@ function ScreenStep({ onNext, loading }) {
           {['landscape', 'portrait'].map(o => (
             <button key={o} type="button" onClick={() => setOrientation(o)}
               className={`flex-1 py-3 rounded-lg border-2 text-sm font-medium transition-all ${
-                orientation === o ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                orientation === o ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-brand-border/50 text-brand-muted hover:border-gray-300'
               }`}>
               {o === 'landscape' ? '🔄 Landscape' : '📱 Portrait'}
             </button>
@@ -200,8 +200,8 @@ function ItemsStep({ items, onAdd, loading, onNext }) {
     <div className="py-4">
       <div className="text-center mb-6">
         <div className="text-4xl mb-3">📝</div>
-        <h3 className="text-xl font-bold text-gray-900">Add Menu Items</h3>
-        <p className="text-gray-500 text-sm mt-1">Quick-add your first items. You can add more later.</p>
+        <h3 className="text-xl font-bold text-brand-text">Add Menu Items</h3>
+        <p className="text-brand-muted text-sm mt-1">Quick-add your first items. You can add more later.</p>
       </div>
       <div className="max-w-md mx-auto">
         <form onSubmit={handleSubmit} className="flex gap-2 mb-4">
@@ -216,14 +216,14 @@ function ItemsStep({ items, onAdd, loading, onNext }) {
           value={itemCategory} onChange={e => setItemCategory(e.target.value)} />
         <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
           {items.length === 0 ? (
-            <p className="text-gray-400 text-sm text-center py-4">No items yet. Add a few or continue.</p>
+            <p className="text-brand-muted/60 text-sm text-center py-4">No items yet. Add a few or continue.</p>
           ) : items.map((item, i) => (
-            <div key={item.id || i} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2.5">
+            <div key={item.id || i} className="flex items-center justify-between bg-brand-surface-alt rounded-lg px-4 py-2.5">
               <div>
-                <span className="font-medium text-gray-900">{item.name}</span>
-                {item.category && <span className="text-xs text-gray-400 ml-2 bg-gray-200 px-1.5 py-0.5 rounded">{item.category}</span>}
+                <span className="font-medium text-brand-text">{item.name}</span>
+                {item.category && <span className="text-xs text-brand-muted/60 ml-2 bg-gray-200 px-1.5 py-0.5 rounded">{item.category}</span>}
               </div>
-              <span className="font-semibold text-gray-700">${parseFloat(item.price || 0).toFixed(2)}</span>
+              <span className="font-semibold text-brand-text/80">${parseFloat(item.price || 0).toFixed(2)}</span>
             </div>
           ))}
         </div>
@@ -247,18 +247,18 @@ function TvSetupStep({ screenSlug, onFinish }) {
     <div className="py-4">
       <div className="text-center mb-6">
         <div className="text-4xl mb-3">📺</div>
-        <h3 className="text-xl font-bold text-gray-900">TV Setup Instructions</h3>
-        <p className="text-gray-500 text-sm mt-1">Follow these steps to get your menu on the TV</p>
+        <h3 className="text-xl font-bold text-brand-text">TV Setup Instructions</h3>
+        <p className="text-brand-muted text-sm mt-1">Follow these steps to get your menu on the TV</p>
       </div>
       <div className="max-w-md mx-auto space-y-4">
         {steps.map((s, i) => (
-          <div key={i} className="flex gap-4 bg-gray-50 rounded-xl p-4">
+          <div key={i} className="flex gap-4 bg-brand-surface-alt rounded-xl p-4">
             <div className="text-2xl shrink-0">{s.icon}</div>
             <div>
-              <h4 className="font-semibold text-gray-900 text-sm">Step {i + 1}: {s.title}</h4>
-              <p className="text-sm text-gray-500 mt-0.5">{s.desc}</p>
+              <h4 className="font-semibold text-brand-text text-sm">Step {i + 1}: {s.title}</h4>
+              <p className="text-sm text-brand-muted mt-0.5">{s.desc}</p>
               {s.title === 'Enter Your Screen URL' && screenSlug && (
-                <div className="mt-2 bg-white border border-gray-200 rounded-lg px-4 py-2.5 font-mono text-sm text-brand-600 break-all select-all">
+                <div className="mt-2 bg-brand-surface border border-brand-border/50 rounded-lg px-4 py-2.5 font-mono text-sm text-brand-600 break-all select-all">
                   https://lumenu.app/?screen={screenSlug}
                 </div>
               )}
