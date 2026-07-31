@@ -47,10 +47,10 @@ export default function DashboardLayout() {
         <div className="p-5 border-b border-emerald-800">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-lg">M</span>
+              <span className="text-white font-bold text-lg">L</span>
             </div>
             <div>
-              <h2 className="font-bold text-sm">Menuvo</h2>
+              <h2 className="font-bold text-sm">Lumenu</h2>
               <p className="text-emerald-300 text-xs truncate max-w-[160px]">{user?.name || 'Restaurant'}</p>
             </div>
           </div>
@@ -93,10 +93,10 @@ export default function DashboardLayout() {
       <div className="md:hidden fixed top-0 left-0 right-0 z-30 bg-emerald-900 text-white px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-emerald-600 rounded-xl flex items-center justify-center">
-            <span className="text-white font-bold">M</span>
+            <span className="text-white font-bold">L</span>
           </div>
           <div>
-            <h2 className="font-bold text-sm">Menuvo</h2>
+            <h2 className="font-bold text-sm">Lumenu</h2>
             <p className="text-emerald-300 text-xs">{user?.name || 'Dashboard'}</p>
           </div>
         </div>
@@ -116,9 +116,9 @@ export default function DashboardLayout() {
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-emerald-800">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center">
-                  <span className="text-white font-bold">M</span>
+                  <span className="text-white font-bold">L</span>
                 </div>
-                <span className="font-bold">Menuvo</span>
+                <span className="font-bold">Lumenu</span>
               </div>
             </div>
             <nav className="space-y-1">

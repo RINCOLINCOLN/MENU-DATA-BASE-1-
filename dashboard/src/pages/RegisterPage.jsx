@@ -21,7 +21,7 @@ export default function RegisterPage() {
     setSubmitting(true)
     try {
       await register(name, email, password)
-      addToast('Account created! Welcome to Menuvo.', 'success')
+      addToast('Account created! Welcome to Lumenu.', 'success')
       navigate('/dashboard')
     } catch (err) {
       addToast(err.message || 'Registration failed', 'error')
@@ -35,10 +35,10 @@ export default function RegisterPage() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-600 rounded-2xl mb-4">
-            <span className="text-white text-3xl font-bold">M</span>
+            <span className="text-white text-3xl font-bold">L</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Get Started</h1>
-          <p className="text-gray-500 mt-1">Create your Menuvo account</p>
+          <p className="text-gray-500 mt-1">Create your Lumenu account</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

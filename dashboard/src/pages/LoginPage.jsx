@@ -30,9 +30,9 @@ export default function LoginPage() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-600 rounded-2xl mb-4">
-            <span className="text-white text-3xl font-bold">M</span>
+            <span className="text-white text-3xl font-bold">L</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Menuvo</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Lumenu</h1>
           <p className="text-gray-500 mt-1">Sign in to your dashboard</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">

@@ -45,7 +45,7 @@ export default function PreviewModal({ slug, onClose }) {
                   <div className="w-full h-full flex items-center justify-center bg-gray-800">
                     <div className="text-center">
                       <div className="text-4xl mb-2">🖥️</div>
-                      <p className="text-lg font-medium mb-1">{screenData?.screen?.name || 'Menuvo Screen'}</p>
+                      <p className="text-lg font-medium mb-1">{screenData?.screen?.name || 'Lumenu Screen'}</p>
                       <p className="text-sm text-gray-400">No background video assigned</p>
                     </div>
                   </div>
