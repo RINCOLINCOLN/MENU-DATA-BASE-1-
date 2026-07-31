@@ -1,4 +1,4 @@
-# Menuvo TV Display PWA
+# Lumenu TV Display PWA
 
 Offline-first Progressive Web App for Android TV boxes. Displays cinematic animated menu boards that keep running even during internet outages.
 

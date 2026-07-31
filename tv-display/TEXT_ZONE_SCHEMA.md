@@ -1,6 +1,6 @@
 # Text Zone Config Schema
 
-Standardized configuration format for `config_json.text_zones` in Menuvo templates.
+Standardized configuration format for `config_json.text_zones` in Lumenu templates.
 
 ## Complete Field Reference
 

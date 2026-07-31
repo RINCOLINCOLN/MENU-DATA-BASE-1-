@@ -1,7 +1,7 @@
 {
-  "name": "menuvo-tv-display",
+  "name": "lumenu-tv-display",
   "version": "1.0.0",
-  "description": "Menuvo TV Display — offline-first animated menu boards",
+  "description": "Lumenu TV Display — offline-first animated menu boards",
   "private": true,
   "scripts": {
     "start": "node serve.js",
