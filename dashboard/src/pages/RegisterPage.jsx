@@ -59,8 +59,8 @@ export default function RegisterPage() {
                 <polygon points="52,42 52,78 78,60" fill="url(#reg-logo-grad)" />
                 <defs>
                   <linearGradient id="reg-logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#F59E0B" />
-                    <stop offset="100%" stopColor="#FBBF24" />
+                    <stop offset="0%" stopColor="#8B5CF6" />
+                    <stop offset="100%" stopColor="#A78BFA" />
                   </linearGradient>
                 </defs>
               </svg>
@@ -111,7 +111,7 @@ export default function RegisterPage() {
               className="btn-primary w-full flex items-center justify-center gap-2 py-3"
             >
               {submitting ? (
-                <span className="inline-block h-4 w-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : null}
               {submitting ? 'Creating account...' : 'Create Account'}
             </button>
