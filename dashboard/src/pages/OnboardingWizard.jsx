@@ -77,7 +77,8 @@ export default function OnboardingWizard() {
   const progress = ((step + 1) / STEPS.length) * 100
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-bg via-[#17112f] to-[#24144a] flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(139,92,246,0.16),transparent_60%)]" />
       <div className="w-full max-w-2xl bg-brand-surface rounded-2xl shadow-2xl overflow-hidden">
         {/* Progress bar */}
         <div className="h-1.5 bg-brand-surface-alt/70">
