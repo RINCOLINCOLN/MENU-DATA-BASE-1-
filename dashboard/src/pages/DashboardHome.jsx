@@ -287,7 +287,7 @@ export default function DashboardHome() {
       {restaurants.length === 0 && (
         <div className="bg-white rounded-xl p-8 md:p-12 text-center shadow-sm border border-gray-100">
           <div className="text-5xl mb-4">🏪</div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Welcome to Menuvo!</h3>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Welcome to Lumenu!</h3>
           <p className="text-gray-500 mb-6 max-w-md mx-auto">
             Get started with our quick setup wizard — it only takes a few minutes.
           </p>

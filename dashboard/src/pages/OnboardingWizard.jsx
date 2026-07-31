@@ -70,7 +70,7 @@ export default function OnboardingWizard() {
   }
 
   const handleFinish = () => {
-    addToast('Your Menuvo is ready! 🎉', 'success')
+    addToast('Your Lumenu is ready! 🎉', 'success')
     navigate('/dashboard')
   }
 
@@ -259,7 +259,7 @@ function TvSetupStep({ screenSlug, onFinish }) {
               <p className="text-sm text-gray-500 mt-0.5">{s.desc}</p>
               {s.title === 'Enter Your Screen URL' && screenSlug && (
                 <div className="mt-2 bg-white border border-gray-200 rounded-lg px-4 py-2.5 font-mono text-sm text-brand-600 break-all select-all">
-                  https://menuvo.app/?screen={screenSlug}
+                  https://lumenu.app/?screen={screenSlug}
                 </div>
               )}
             </div>
