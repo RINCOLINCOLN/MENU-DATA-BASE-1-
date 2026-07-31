@@ -5,21 +5,23 @@ export default function ScreenCard({ screen, health }) {
 
   return (
     <Link to={`/dashboard/screens/${screen.id}`}
-      className="block bg-gray-50 rounded-lg p-3 hover:bg-gray-100 transition-colors">
+      className="block bg-brand-surface-alt rounded-lg p-3 hover:bg-brand-surface-alt/70 border border-brand-border/30 transition-all">
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2">
-          <span className={`inline-block w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} />
-          <span className="font-medium text-sm text-gray-900 truncate max-w-[120px]">{screen.name}</span>
+          <span className={`inline-block w-2 h-2 rounded-full ${
+            isOnline ? 'bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.5)]' : 'bg-red-400'
+          }`} />
+          <span className="font-medium text-sm text-brand-text truncate max-w-[120px]">{screen.name}</span>
         </div>
       </div>
-      <div className="text-xs text-gray-400">
+      <div className="text-xs text-brand-muted/60">
         {isOnline ? (
           <>Online{health?.last_sync_at ? ` · ${timeAgo(health.last_sync_at)}` : ''}</>
         ) : (
           <>Offline{health?.last_sync_at ? ` since ${timeAgo(health.last_sync_at)}` : ''}</>
         )}
       </div>
-      <div className="text-xs text-gray-400 mt-0.5">{screen.orientation}</div>
+      <div className="text-xs text-brand-muted/60 mt-0.5">{screen.orientation}</div>
     </Link>
   )
 }

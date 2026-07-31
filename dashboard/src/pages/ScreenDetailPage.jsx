@@ -95,23 +95,23 @@ export default function ScreenDetailPage() {
     setAssigningTemplate(false)
   }
   if (loading) return <SkeletonLoader />
-  if (!screen) return <div className="text-center py-12 text-gray-500">Screen not found</div>
+  if (!screen) return <div className="text-center py-12 text-brand-muted">Screen not found</div>
   const isOnline = health?.is_online ?? true
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <button onClick={() => navigate('/dashboard/screens')}
-          className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">← Back</button>
+          className="p-2 hover:bg-brand-surface-alt/70 rounded-lg text-brand-muted">← Back</button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{screen.name}</h1>
+          <h1 className="text-2xl font-bold text-brand-text">{screen.name}</h1>
           <div className="flex items-center gap-2 mt-0.5">
-            <span className={`inline-block w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} />
-            <span className="text-sm text-gray-500">
+            <span className={`inline-block w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-green-400' : 'bg-red-500'}`} />
+            <span className="text-sm text-brand-muted">
               {isOnline ? 'Online' : 'Offline'}
               {health?.last_sync_at && ` · synced ${new Date(health.last_sync_at).toLocaleTimeString()}`}
             </span>
-            <span className="text-xs text-gray-400">· {screen.orientation}</span>
-            <span className="text-xs text-gray-400">· slug: {screen.unique_slug}</span>
+            <span className="text-xs text-brand-muted/60">· {screen.orientation}</span>
+            <span className="text-xs text-brand-muted/60">· slug: {screen.unique_slug}</span>
           </div>
         </div>
       </div>
@@ -124,9 +124,9 @@ export default function ScreenDetailPage() {
         )}
       </div>
       {/* Template Assignment */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+      <div className="bg-brand-surface rounded-xl shadow-sm border border-brand-border/40 p-4">
         <div className="flex items-center gap-4 flex-wrap">
-          <label className="text-sm font-medium text-gray-700">Background Template:</label>
+          <label className="text-sm font-medium text-brand-text/80">Background Template:</label>
           <select className="input-field w-auto min-w-[200px]"
             value={selectedTemplateId}
             onChange={e => handleAssignTemplate(e.target.value)}
@@ -138,7 +138,7 @@ export default function ScreenDetailPage() {
               </option>
             ))}
           </select>
-          {assigningTemplate && <span className="text-sm text-gray-400">Updating...</span>}
+          {assigningTemplate && <span className="text-sm text-brand-muted/60">Updating...</span>}
           {templates.length === 0 && (
             <Link to="/dashboard/templates" className="text-sm text-brand-600 hover:text-brand-700 font-medium">
               + Upload a template
@@ -146,14 +146,14 @@ export default function ScreenDetailPage() {
           )}
         </div>
       </div>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900">Menu Items</h3>
-          <span className="text-sm text-gray-400">{menuItems.length} items</span>
+      <div className="bg-brand-surface rounded-xl shadow-sm border border-brand-border/40">
+        <div className="px-5 py-3 border-b border-brand-border/40 flex items-center justify-between">
+          <h3 className="font-semibold text-brand-text">Menu Items</h3>
+          <span className="text-sm text-brand-muted/60">{menuItems.length} items</span>
         </div>
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-brand-border/20">
           {menuItems.length === 0 ? (
-            <div className="p-8 text-center text-gray-400 text-sm">
+            <div className="p-8 text-center text-brand-muted/60 text-sm">
               No menu items yet. Add some in Edit Menu.
             </div>
           ) : (

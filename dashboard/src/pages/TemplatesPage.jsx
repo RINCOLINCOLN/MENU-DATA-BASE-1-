@@ -48,25 +48,25 @@ export default function TemplatesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Templates</h1>
-          <p className="text-gray-500 mt-1 text-sm">Manage background videos for your TV screens</p>
+          <h1 className="text-2xl font-bold text-brand-text">Templates</h1>
+          <p className="text-brand-muted mt-1 text-sm">Manage background videos for your TV screens</p>
         </div>
         <button onClick={() => setUploadOpen(true)}
           className="btn-primary flex items-center gap-1.5">+ Upload Video</button>
       </div>
 
       {templates.length === 0 ? (
-        <div className="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100">
+        <div className="bg-brand-surface rounded-xl p-8 text-center shadow-sm border border-brand-border/40">
           <div className="text-4xl mb-3">🎬</div>
-          <h3 className="font-semibold text-gray-900 mb-1">No templates yet</h3>
-          <p className="text-gray-500 text-sm mb-4">Upload MP4 background videos to create cinematic menu boards.</p>
+          <h3 className="font-semibold text-brand-text mb-1">No templates yet</h3>
+          <p className="text-brand-muted text-sm mb-4">Upload MP4 background videos to create cinematic menu boards.</p>
           <button onClick={() => setUploadOpen(true)}
             className="btn-primary">Upload Your First Video</button>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {templates.map(t => (
-            <div key={t.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+            <div key={t.id} className="bg-brand-surface rounded-xl shadow-sm border border-brand-border/40 overflow-hidden hover:shadow-md transition-shadow">
               {/* Video preview */}
               {t.video_url ? (
                 <div className="relative bg-black aspect-video">
@@ -75,22 +75,22 @@ export default function TemplatesPage() {
                     onMouseLeave={e => e.target.pause()} />
                 </div>
               ) : (
-                <div className="bg-gray-100 aspect-video flex items-center justify-center">
+                <div className="bg-brand-surface-alt/70 aspect-video flex items-center justify-center">
                   <span className="text-3xl">🎬</span>
                 </div>
               )}
               <div className="p-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="font-semibold text-gray-900">{t.name}</h3>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-gray-400">
-                      <span className="bg-gray-100 px-1.5 py-0.5 rounded">{t.orientation || 'landscape'}</span>
+                    <h3 className="font-semibold text-brand-text">{t.name}</h3>
+                    <div className="flex items-center gap-2 mt-1 text-xs text-brand-muted/60">
+                      <span className="bg-brand-surface-alt/70 px-1.5 py-0.5 rounded">{t.orientation || 'landscape'}</span>
                       {t.video_url && <span>MP4</span>}
                     </div>
                   </div>
                 </div>
                 {t.config_json && (
-                  <p className="text-xs text-gray-400 mt-1">Has text zone config</p>
+                  <p className="text-xs text-brand-muted/60 mt-1">Has text zone config</p>
                 )}
                 <div className="flex gap-2 mt-3">
                   <button onClick={() => { setEditingTemplate(t); setEditorOpen(true) }}
@@ -171,25 +171,25 @@ function UploadModal({ onClose, onSuccess }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-brand-surface rounded-2xl w-full max-w-lg p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-900">Upload Video Template</h3>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg text-gray-500">✕</button>
+          <h3 className="text-lg font-bold text-brand-text">Upload Video Template</h3>
+          <button onClick={onClose} className="p-1 hover:bg-brand-surface-alt/70 rounded-lg text-brand-muted">✕</button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Template Name</label>
+            <label className="block text-sm font-medium text-brand-text/80 mb-1">Template Name</label>
             <input className="input-field" placeholder="e.g. Summer Menu Loop"
               value={name} onChange={e => setName(e.target.value)} required autoFocus />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Orientation</label>
+            <label className="block text-sm font-medium text-brand-text/80 mb-1">Orientation</label>
             <div className="flex gap-3">
               {['landscape', 'portrait'].map(o => (
                 <button key={o} type="button" onClick={() => setOrientation(o)}
                   className={`flex-1 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
-                    orientation === o ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-gray-200 text-gray-500'
+                    orientation === o ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-brand-border/50 text-brand-muted'
                   }`}>
                   {o === 'landscape' ? '🔄 Landscape (16:9)' : '📱 Portrait (9:16)'}
                 </button>
@@ -198,7 +198,7 @@ function UploadModal({ onClose, onSuccess }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Video File (MP4, max 100MB)</label>
+            <label className="block text-sm font-medium text-brand-text/80 mb-1">Video File (MP4, max 100MB)</label>
             <div
               onDragOver={e => { e.preventDefault(); setDragOver(true) }}
               onDragLeave={() => setDragOver(false)}
@@ -211,16 +211,16 @@ function UploadModal({ onClose, onSuccess }) {
               {videoFile ? (
                 <div>
                   <span className="text-2xl">🎬</span>
-                  <p className="font-medium text-gray-900 mt-1">{videoFile.name}</p>
-                  <p className="text-xs text-gray-400 mt-1">{(videoFile.size / 1024 / 1024).toFixed(1)} MB</p>
+                  <p className="font-medium text-brand-text mt-1">{videoFile.name}</p>
+                  <p className="text-xs text-brand-muted/60 mt-1">{(videoFile.size / 1024 / 1024).toFixed(1)} MB</p>
                   <button type="button" onClick={(e) => { e.stopPropagation(); setVideoFile(null) }}
                     className="text-xs text-red-500 mt-1 hover:underline">Remove</button>
                 </div>
               ) : (
                 <div>
                   <span className="text-3xl">📁</span>
-                  <p className="font-medium text-gray-700 mt-2">Drop video here or click to browse</p>
-                  <p className="text-xs text-gray-400 mt-1">MP4, WebM, MOV (max 100MB)</p>
+                  <p className="font-medium text-brand-text/80 mt-2">Drop video here or click to browse</p>
+                  <p className="text-xs text-brand-muted/60 mt-1">MP4, WebM, MOV (max 100MB)</p>
                 </div>
               )}
               <input ref={fileInputRef} type="file" accept=".mp4,.webm,.mov,.avi,.mkv" className="hidden"
@@ -236,7 +236,7 @@ function UploadModal({ onClose, onSuccess }) {
             </button>
             {showConfig && (
               <div className="mt-2">
-                <label className="block text-xs text-gray-500 mb-1">
+                <label className="block text-xs text-brand-muted mb-1">
                   JSON array of text zones. Each zone: {`{ "id": "zone1", "x": 0.1, "y": 0.2, "width": 0.8, "height": 0.6, "font_size": 24, "color": "#ffffff", "align": "left" }`}
                 </label>
                 <textarea className="input-field font-mono text-xs h-28 resize-y"
@@ -312,9 +312,9 @@ function AssignModal({ template, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-bold text-gray-900 mb-1">Assign Template</h3>
-        <p className="text-sm text-gray-500 mb-4">Assign "<strong>{template.name}</strong>" to a screen</p>
+      <div className="bg-brand-surface rounded-2xl w-full max-w-md p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-bold text-brand-text mb-1">Assign Template</h3>
+        <p className="text-sm text-brand-muted mb-4">Assign "<strong>{template.name}</strong>" to a screen</p>
 
         {loading ? (
           <div className="animate-pulse space-y-2">
@@ -322,7 +322,7 @@ function AssignModal({ template, onClose }) {
             <div className="h-10 skeleton" />
           </div>
         ) : screens.length === 0 ? (
-          <p className="text-gray-400 text-sm text-center py-4">No screens available. Create one first.</p>
+          <p className="text-brand-muted/60 text-sm text-center py-4">No screens available. Create one first.</p>
         ) : (
           <div className="space-y-3">
             <select className="input-field" value={selectedScreenId}
