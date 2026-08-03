@@ -77,7 +77,8 @@ export default function OnboardingWizard() {
   const progress = ((step + 1) / STEPS.length) * 100
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-bg via-[#17112f] to-[#24144a] flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(139,92,246,0.16),transparent_60%)]" />
       <div className="w-full max-w-2xl bg-brand-surface rounded-2xl shadow-2xl overflow-hidden">
         {/* Progress bar */}
         <div className="h-1.5 bg-brand-surface-alt/70">
@@ -169,7 +170,7 @@ function ScreenStep({ onNext, loading }) {
           {['landscape', 'portrait'].map(o => (
             <button key={o} type="button" onClick={() => setOrientation(o)}
               className={`flex-1 py-3 rounded-lg border-2 text-sm font-medium transition-all ${
-                orientation === o ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-brand-border/50 text-brand-muted hover:border-gray-300'
+                orientation === o ? 'border-brand-500 bg-brand-primary/20 text-brand-text shadow-[0_0_16px_rgba(139,92,246,0.2)]' : 'border-brand-border/50 text-brand-muted hover:border-brand-primary/50'
               }`}>
               {o === 'landscape' ? '🔄 Landscape' : '📱 Portrait'}
             </button>
@@ -258,7 +259,7 @@ function TvSetupStep({ screenSlug, onFinish }) {
               <h4 className="font-semibold text-brand-text text-sm">Step {i + 1}: {s.title}</h4>
               <p className="text-sm text-brand-muted mt-0.5">{s.desc}</p>
               {s.title === 'Enter Your Screen URL' && screenSlug && (
-                <div className="mt-2 bg-brand-surface border border-brand-border/50 rounded-lg px-4 py-2.5 font-mono text-sm text-brand-600 break-all select-all">
+                <div className="mt-2 bg-brand-surface border border-brand-primary/40 rounded-lg px-4 py-3 font-mono text-sm text-brand-primary break-all select-all cursor-copy shadow-[0_0_14px_rgba(139,92,246,0.12)]" title="Tap to select and copy">
                   https://lumenu.ctonew.app/tv/?slug={screenSlug}
                 </div>
               )}
