@@ -95,7 +95,7 @@
   function resolveSlug() {
     // Check query param ?slug=xxx or URL path /screen/xxx
     const params = new URLSearchParams(location.search);
-    const slugParam = params.get('slug');
+    const slugParam = params.get('slug') || params.get('screen');
     if (slugParam) return slugParam;
 
     const match = location.pathname.match(/\/screen\/([^/]+)/);

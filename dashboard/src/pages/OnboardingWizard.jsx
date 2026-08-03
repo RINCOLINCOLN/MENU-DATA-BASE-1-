@@ -260,7 +260,7 @@ function TvSetupStep({ screenSlug, onFinish }) {
               <p className="text-sm text-brand-muted mt-0.5">{s.desc}</p>
               {s.title === 'Enter Your Screen URL' && screenSlug && (
                 <div className="mt-2 bg-brand-surface border border-brand-border/50 rounded-lg px-4 py-2.5 font-mono text-sm text-brand-600 break-all select-all">
-                  https://lumenu.app/?screen={screenSlug}
+                  https://lumenu.ctonew.app/tv/?slug={screenSlug}
                 </div>
               )}
             </div>
