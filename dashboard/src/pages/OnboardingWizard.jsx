@@ -170,7 +170,7 @@ function ScreenStep({ onNext, loading }) {
           {['landscape', 'portrait'].map(o => (
             <button key={o} type="button" onClick={() => setOrientation(o)}
               className={`flex-1 py-3 rounded-lg border-2 text-sm font-medium transition-all ${
-                orientation === o ? 'border-brand-500 bg-brand-primary/20 text-brand-text shadow-[0_0_16px_rgba(139,92,246,0.2)]' : 'border-brand-border/50 text-brand-muted hover:border-brand-primary/50'
+                orientation === o ? 'border-[#a78bfa] bg-[#39266b] text-[#ffffff] shadow-[0_0_16px_rgba(139,92,246,0.35)]' : 'border-[#4b4263] bg-[#151122] text-[#c4bdd5] hover:border-[#8b5cf6] hover:text-[#f5f0e8]'
               }`}>
               {o === 'landscape' ? '🔄 Landscape' : '📱 Portrait'}
             </button>
@@ -259,7 +259,7 @@ function TvSetupStep({ screenSlug, onFinish }) {
               <h4 className="font-semibold text-brand-text text-sm">Step {i + 1}: {s.title}</h4>
               <p className="text-sm text-brand-muted mt-0.5">{s.desc}</p>
               {s.title === 'Enter Your Screen URL' && screenSlug && (
-                <div className="mt-2 bg-brand-surface border border-brand-primary/40 rounded-lg px-4 py-3 font-mono text-sm text-brand-primary break-all select-all cursor-copy shadow-[0_0_14px_rgba(139,92,246,0.12)]" title="Tap to select and copy">
+                <div className="mt-2 bg-[#0b0812] border-2 border-[#a78bfa] rounded-lg px-4 py-3 font-mono text-sm font-semibold text-[#ffffff] break-all select-all cursor-copy shadow-[0_0_18px_rgba(139,92,246,0.3)]" title="Tap to select and copy">
                   https://lumenu.ctonew.app/tv/?slug={screenSlug}
                 </div>
               )}
