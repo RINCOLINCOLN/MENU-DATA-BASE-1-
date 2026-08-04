@@ -1,69 +1,34 @@
-# Lumenu Operations Runbook
+# Lumenu runtime route ownership
 
-## Quick Start / Restart
+## Required startup order
 
-If the website is down or you need to restart all services:
+The public origin is a single Express process on port 3000. Start the landing SSR first on loopback port 3002, then start Express on port 3000. Express proxies only `GET /` to landing SSR; this prevents a dashboard restart from taking ownership of the public homepage.
 
 ```bash
-bash /home/team/shared/menuvo/scripts/startup.sh
+cd /home/team/shared/site
+setsid nohup bun run serve-landing.ts > .run/landing.log 2>&1 < /dev/null &
+cd /home/team/shared/menuvo/server
+setsid nohup node server.js > server-run.log 2>&1 < /dev/null &
 ```
 
-### What it does
+If restarting, stop the existing listeners on ports 3000 and 3002 first. Do not run `bun run publish` as the final process on port 3000: it is the landing-only dev server and would hide `/api`, `/tv`, and dashboard routes. Publish the site (`bun run publish`) before starting the two-process runtime, then leave Express on 3000.
 
-1. Kills any stale processes on ports 3000, 3001, 3002
-2. Starts Bun landing page SSR on port 3002 (internal)
-3. Starts Node.js Express server on port 3000 (public)
-4. Verifies all 4 endpoints return HTTP 200
+## Route ownership
 
-### Expected output (success)
+- `/` — landing sales page, proxied by Express to SSR on 3002
+- `/app/` — dashboard SPA
+- `/login`, `/register`, `/dashboard` — dashboard SPA fallback (legacy direct links retained)
+- `/tv/` — TV Display PWA
+- `/api/*` — Express API
+- `/uploads/*` — Express uploaded assets
 
-```
-🚀 Lumenu Startup — ...
-Step 1: Killing stale processes...
-  Ports cleared
-Step 2: Starting landing page SSR (Bun on :3002)...
-  Bun PID: 12345
-Step 3: Starting backend server (Node on :3000)...
-  Node PID: 12346
-Step 4: Verifying endpoints...
-  ✅ API Health → 200
-  ✅ Landing Page → 200
-  ✅ Dashboard → 200
-  ✅ TV Display → 200
+## Verification
 
-✅ All checks passed — Lumenu is live on :3000
+```bash
+for p in / /app/ /login /register /dashboard '/tv/?slug=brew-main-board' /api/health; do
+  curl -sS -o /tmp/lumenu-check -w "$p %{http_code} " "http://localhost:3000$p"
+  grep -aoE '<title>[^<]+' /tmp/lumenu-check | head -1
+ done
 ```
 
-## Failure Triage
-
-| Symptom | Likely cause | Fix |
-|---------|-------------|-----|
-| `Port 3000 still in use after 10s` | Stale bun process from old `serve.ts` | `sudo fuser -k 3000/tcp` then re-run |
-| `❌ API Health → 404` | Old bun server on 3000, not Node Express | Kill bun on 3000: `sudo fuser -k 3000/tcp` |
-| `❌ Dashboard → 307` | Express.static redirect without trailing slash | Wait for retries — resolves within ~3s |
-| All checks fail | Neither server started | Check logs: `cat /tmp/menuvo-server.log` and `cat /tmp/landing-server.log` |
-
-## Architecture
-
-| Port | Service | Internal/Public |
-|------|---------|-----------------|
-| 3000 | Node.js Express | Public surface (all traffic) |
-| 3002 | Bun (TanStack SSR) | Internal — proxied from 3000 |
-
-### Routes on port 3000
-
-| Path | Serves |
-|------|--------|
-| `/` | Landing page (SSR via Bun proxy) |
-| `/app/` | Dashboard SPA |
-| `/api/*` | REST API |
-| `/tv/` | TV Display PWA |
-| `/uploads/` | Uploaded files |
-
-## Log Files
-
-| Service | Log |
-|---------|-----|
-| Node Express | `/tmp/menuvo-server.log` |
-| Bun Landing | `/tmp/landing-server.log` |
-| Startup script | `/tmp/lumenu-startup.log` |
+Root should contain `Lumenu — Digital Menus · Cinematic Style` and `Start free trial`; dashboard should contain `Lumenu Dashboard`; API health must return JSON.
