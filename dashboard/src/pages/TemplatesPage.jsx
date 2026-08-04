@@ -3,6 +3,18 @@ import { useNavigate } from 'react-router-dom'
 import { useToast } from '../contexts/ToastContext'
 import SkeletonLoader from '../components/SkeletonLoader'
 import TextZoneEditor from '../components/TextZoneEditor'
+import TemplatePreview from '../components/TemplatePreview'
+
+/** Count configured text zones, tolerating string / array / {zones: []} configs. */
+function zoneCount(configJson) {
+  if (!configJson) return 0
+  let parsed = configJson
+  if (typeof parsed === 'string') {
+    try { parsed = JSON.parse(parsed) } catch { return 0 }
+  }
+  const zones = Array.isArray(parsed) ? parsed : parsed?.zones
+  return Array.isArray(zones) ? zones.length : 0
+}
 
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState([])
@@ -67,31 +79,25 @@ export default function TemplatesPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {templates.map(t => (
             <div key={t.id} className="bg-brand-surface rounded-xl shadow-sm border border-brand-border/40 overflow-hidden hover:shadow-md transition-shadow">
-              {/* Video preview */}
-              {t.video_url ? (
-                <div className="relative bg-black aspect-video">
-                  <video src={t.video_url} className="w-full h-full object-cover" muted loop
-                    onMouseEnter={e => e.target.play()}
-                    onMouseLeave={e => e.target.pause()} />
-                </div>
-              ) : (
-                <div className="bg-brand-surface-alt/70 aspect-video flex items-center justify-center">
-                  <span className="text-3xl">🎬</span>
-                </div>
-              )}
+              {/* Visual preview */}
+              <TemplatePreview template={t} />
               <div className="p-4">
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="font-semibold text-brand-text">{t.name}</h3>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-brand-muted/60">
-                      <span className="bg-brand-surface-alt/70 px-1.5 py-0.5 rounded">{t.orientation || 'landscape'}</span>
-                      {t.video_url && <span>MP4</span>}
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5 text-xs">
+                      <span className="bg-brand-surface-alt/70 px-1.5 py-0.5 rounded text-brand-muted/70">{t.orientation || 'landscape'}</span>
+                      {t.video_url && <span className="bg-brand-surface-alt/70 px-1.5 py-0.5 rounded text-brand-muted/70">MP4</span>}
+                      {zoneCount(t.config_json) > 0 ? (
+                        <span className="bg-brand-primary/15 text-brand-glow px-1.5 py-0.5 rounded font-medium">
+                          {zoneCount(t.config_json)} text zone{zoneCount(t.config_json) !== 1 ? 's' : ''}
+                        </span>
+                      ) : (
+                        <span className="bg-brand-surface-alt/70 px-1.5 py-0.5 rounded text-brand-muted/70">No text zones</span>
+                      )}
                     </div>
                   </div>
                 </div>
-                {t.config_json && (
-                  <p className="text-xs text-brand-muted/60 mt-1">Has text zone config</p>
-                )}
                 <div className="flex gap-2 mt-3">
                   <button onClick={() => { setEditingTemplate(t); setEditorOpen(true) }}
                     className="flex-1 text-xs btn-secondary py-1.5">Edit Zones</button>
