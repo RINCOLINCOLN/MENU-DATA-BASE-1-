@@ -59,6 +59,7 @@ function initSchema(db) {
       unique_slug TEXT UNIQUE NOT NULL,
       orientation TEXT DEFAULT 'landscape',
       template_id TEXT REFERENCES templates(id),
+      sort_order INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
     );
 
@@ -86,6 +87,12 @@ function initSchema(db) {
       created_at TEXT DEFAULT (datetime('now'))
     );
   `);
+
+  // Migration: add sort_order to screens for existing databases
+  const screenCols = db.prepare('PRAGMA table_info(screens)').all();
+  if (!screenCols.some(c => c.name === 'sort_order')) {
+    db.exec('ALTER TABLE screens ADD COLUMN sort_order INTEGER DEFAULT 0');
+  }
 }
 
 export default getDb;

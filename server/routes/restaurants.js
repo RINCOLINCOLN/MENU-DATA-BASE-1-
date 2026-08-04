@@ -92,7 +92,7 @@ router.get('/:id/screens', (req, res) => {
     FROM screens s
     LEFT JOIN templates t ON s.template_id = t.id
     WHERE s.restaurant_id = ?
-    ORDER BY s.created_at DESC
+    ORDER BY s.sort_order ASC, s.created_at DESC
   `).all(req.params.id);
 
   res.json({ screens });
@@ -115,6 +115,10 @@ router.post('/:id/screens', (req, res) => {
   }
 
   const screenId = uuidv4();
+  // Place new screens after existing ones so ordering is stable out of the box
+  const nextOrder = db.prepare(
+    'SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM screens WHERE restaurant_id = ?'
+  ).get(req.params.id).next;
   // Use provided slug or generate a friendly one from the name
   let uniqueSlug = slug;
   if (!uniqueSlug) {
@@ -135,9 +139,9 @@ router.post('/:id/screens', (req, res) => {
   }
 
   db.prepare(`
-    INSERT INTO screens (id, restaurant_id, name, unique_slug, orientation, template_id)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(screenId, req.params.id, name, uniqueSlug, orientation || 'landscape', template_id || null);
+    INSERT INTO screens (id, restaurant_id, name, unique_slug, orientation, template_id, sort_order)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(screenId, req.params.id, name, uniqueSlug, orientation || 'landscape', template_id || null, nextOrder);
 
   const screen = db.prepare('SELECT * FROM screens WHERE id = ?').get(screenId);
   res.status(201).json({ screen });

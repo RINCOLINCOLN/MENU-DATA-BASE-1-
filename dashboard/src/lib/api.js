@@ -39,6 +39,9 @@ export const api = {
     request('GET', `/restaurants/${restaurantId}/screens`),
   getScreen: (screenId) => request('GET', `/screens/${screenId}`),
   getScreenHealth: (slug) => request('GET', `/screens/${slug}/health`),
+  deleteScreen: (screenId) => request('DELETE', `/screens/${screenId}`),
+  reorderScreens: (screenIds) =>
+    request('POST', '/screens/reorder', { screen_ids: screenIds }),
 
   // Menu Items — backend uses /api/screens/:screenId/menu-items
   // and /api/menu-items/:id for PATCH/DELETE
