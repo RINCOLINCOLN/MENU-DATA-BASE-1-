@@ -29,6 +29,8 @@ app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Public root is owned by the marketing landing process on port 3002.
+// Keep the dashboard isolated under /app so a restart cannot accidentally make
+// the login shell the public homepage.
 // Keep the dashboard isolated under /app so a restart cannot make login the homepage.
 const landingOrigin = 'http://127.0.0.1:3002';
 app.get('/', async (req, res, next) => {
@@ -39,6 +41,11 @@ app.get('/', async (req, res, next) => {
     landing.headers.forEach((value, key) => {
       if (key.toLowerCase() !== 'content-length') res.setHeader(key, value);
     });
+    const html = await landing.text();
+    // Rewrite landing's absolute asset URLs to a distinct namespace. The
+    // dashboard also uses /assets, so sharing that path causes the browser to
+    // receive the dashboard HTML for landing CSS/JS and appear stuck loading.
+    res.send(html.replaceAll('/assets/', '/site-assets/'));
     res.send(Buffer.from(await landing.arrayBuffer()));
   } catch {
     next();
@@ -46,6 +53,9 @@ app.get('/', async (req, res, next) => {
 });
 const dashboardDistPath = path.join(__dirname, '..', 'dashboard', 'dist');
 app.use('/app', express.static(dashboardDistPath));
+// Dashboard assets use absolute /assets paths; expose assets without making the
+// dashboard index available at root.
+app.use('/site-assets', express.static(path.join('/home/team/shared/site', 'dist', 'client', 'assets')));
 app.use('/assets', express.static(path.join(dashboardDistPath, 'assets')));
 app.use('/favicon.svg', express.static(path.join(dashboardDistPath, 'favicon.svg')));
 
@@ -100,7 +110,8 @@ getDb();
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Lumenu Server running on http://0.0.0.0:${PORT}`);
   console.log(`API: http://localhost:${PORT}/api/`);
-  console.log(`Dashboard: http://localhost:${PORT}/`);
+  console.log(`Landing page: proxied → ${landingOrigin}`);
+  console.log(`Dashboard: http://localhost:${PORT}/app/`);
   console.log(`TV Display: http://localhost:${PORT}/tv/`);
   console.log(`WebSocket: ws://localhost:${PORT}/ws`);
 });
