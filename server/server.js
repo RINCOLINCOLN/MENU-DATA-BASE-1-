@@ -28,9 +28,26 @@ app.use(express.json());
 // Serve uploaded files (videos, etc.)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// ── Serve the Dashboard (built React app) at root ──
+// Public root is owned by the marketing landing process on port 3002.
+// Keep the dashboard isolated under /app so a restart cannot make login the homepage.
+const landingOrigin = 'http://127.0.0.1:3002';
+app.get('/', async (req, res, next) => {
+  try {
+    const landing = await fetch(`${landingOrigin}/`);
+    if (!landing.ok) return next();
+    res.status(landing.status);
+    landing.headers.forEach((value, key) => {
+      if (key.toLowerCase() !== 'content-length') res.setHeader(key, value);
+    });
+    res.send(Buffer.from(await landing.arrayBuffer()));
+  } catch {
+    next();
+  }
+});
 const dashboardDistPath = path.join(__dirname, '..', 'dashboard', 'dist');
-app.use(express.static(dashboardDistPath));
+app.use('/app', express.static(dashboardDistPath));
+app.use('/assets', express.static(path.join(dashboardDistPath, 'assets')));
+app.use('/favicon.svg', express.static(path.join(dashboardDistPath, 'favicon.svg')));
 
 // ── Serve the TV Display PWA at /tv/ ──
 const tvDisplayPath = path.join(__dirname, '..', 'tv-display');
