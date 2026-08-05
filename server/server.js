@@ -40,7 +40,11 @@ app.get('/', async (req, res, next) => {
     landing.headers.forEach((value, key) => {
       if (key.toLowerCase() !== 'content-length') res.setHeader(key, value);
     });
-    res.send(Buffer.from(await landing.arrayBuffer()));
+    const html = await landing.text();
+    // Rewrite landing's absolute asset URLs to a distinct namespace. The
+    // dashboard also uses /assets, so sharing that path causes the browser to
+    // receive the dashboard HTML for landing CSS/JS and appear stuck loading.
+    res.send(html.replaceAll('/assets/', '/site-assets/'));
   } catch {
     next();
   }
@@ -49,6 +53,7 @@ const dashboardDistPath = path.join(__dirname, '..', 'dashboard', 'dist');
 app.use('/app', express.static(dashboardDistPath));
 // Dashboard assets use absolute /assets paths; expose assets without making the
 // dashboard index available at root.
+app.use('/site-assets', express.static(path.join('/home/team/shared/site', 'dist', 'client', 'assets')));
 app.use('/assets', express.static(path.join(dashboardDistPath, 'assets')));
 app.use('/favicon.svg', express.static(path.join(dashboardDistPath, 'favicon.svg')));
 
