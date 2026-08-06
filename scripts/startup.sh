@@ -19,6 +19,10 @@ sleep 2; [ -n "$(pid_on_port 3002)" ] || { cat /tmp/lumenu-landing.log; exit 1; 
 log 'Starting Express/API + dashboard/TV on public :3000'; (cd "$ROOT/server" && setsid nohup env PORT=3000 node server.js >/tmp/lumenu-server.log 2>&1 < /dev/null &)
 sleep 3
 check http://127.0.0.1:3000/api/health
+# Prove POST API routing (not marketing HTML fallback) without requiring a valid account.
+login_type=$(curl -sS -X POST -H 'content-type: application/json' --data '{"email":"smoke-invalid@example.invalid","password":"invalid"}' -o /tmp/lumenu-login-check -w '%{content_type}' --max-time 10 http://127.0.0.1:3000/api/auth/login || true)
+login_code=$(curl -sS -X POST -H 'content-type: application/json' --data '{"email":"smoke-invalid@example.invalid","password":"invalid"}' -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:3000/api/auth/login || true)
+case "$login_type:$login_code" in application/json*:*401) echo "OK http://127.0.0.1:3000/api/auth/login (JSON $login_code)";; *) echo "FAIL API login routing ($login_type $login_code)"; exit 1;; esac
 check http://127.0.0.1:3000/
 check http://127.0.0.1:3000/login
 check http://127.0.0.1:3000/register
