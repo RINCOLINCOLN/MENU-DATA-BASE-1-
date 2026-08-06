@@ -46,7 +46,6 @@ app.get('/', async (req, res, next) => {
     // dashboard also uses /assets, so sharing that path causes the browser to
     // receive the dashboard HTML for landing CSS/JS and appear stuck loading.
     res.send(html.replaceAll('/assets/', '/site-assets/'));
-    res.send(Buffer.from(await landing.arrayBuffer()));
   } catch {
     next();
   }
