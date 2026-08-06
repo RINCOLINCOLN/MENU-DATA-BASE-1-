@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useToast } from '../contexts/ToastContext'
+import { getToken, setToken, clearToken } from '../lib/token'
 
 const DEFAULT_ZONE = {
   id: '', x: 5, y: 5, width: 90, height: 20,
@@ -56,7 +57,7 @@ export default function TextZoneEditor({ template, onClose, onSaved }) {
   const [saving, setSaving] = useState(false)
   const canvasRef = useRef(null)
   const { addToast } = useToast()
-  const token = localStorage.getItem('menuvo_token')
+  const token = getToken()
 
   useEffect(() => {
     if (template?.config_json) {

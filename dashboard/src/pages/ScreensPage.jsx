@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import SkeletonLoader from '../components/SkeletonLoader'
 import { useToast } from '../contexts/ToastContext'
 import { api } from '../lib/api'
+import { getToken, setToken, clearToken } from '../lib/token'
 
 export default function ScreensPage() {
   const [screens, setScreens] = useState([])
@@ -14,7 +15,7 @@ export default function ScreensPage() {
 
   const fetchScreens = async () => {
     try {
-      const token = localStorage.getItem('menuvo_token')
+      const token = getToken()
       const res = await fetch('/api/restaurants', {
         headers: { Authorization: `Bearer ${token}` }
       })

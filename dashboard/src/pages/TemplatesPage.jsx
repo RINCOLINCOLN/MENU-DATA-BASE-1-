@@ -4,6 +4,7 @@ import { useToast } from '../contexts/ToastContext'
 import SkeletonLoader from '../components/SkeletonLoader'
 import TextZoneEditor from '../components/TextZoneEditor'
 import TemplatePreview from '../components/TemplatePreview'
+import { getToken, setToken, clearToken } from '../lib/token'
 
 /** Count configured text zones, tolerating string / array / {zones: []} configs. */
 function zoneCount(configJson) {
@@ -27,7 +28,7 @@ export default function TemplatesPage() {
   const { addToast } = useToast()
   const navigate = useNavigate()
 
-  const token = localStorage.getItem('menuvo_token')
+  const token = getToken()
   const headers = { Authorization: `Bearer ${token}` }
 
   const fetchTemplates = async () => {
@@ -157,7 +158,7 @@ function UploadModal({ onClose, onSuccess }) {
       formData.append('video', videoFile)
       if (configJson.trim()) formData.append('config_json', configJson)
 
-      const token = localStorage.getItem('menuvo_token')
+      const token = getToken()
       const res = await fetch('/api/templates', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
@@ -273,7 +274,7 @@ function AssignModal({ template, onClose }) {
   const [assigning, setAssigning] = useState(false)
   const { addToast } = useToast()
 
-  const token = localStorage.getItem('menuvo_token')
+  const token = getToken()
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
 
   useEffect(() => {

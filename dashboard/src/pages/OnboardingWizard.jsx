@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../contexts/ToastContext'
+import { getToken, setToken, clearToken } from '../lib/token'
 
 const STEPS = ['Restaurant', 'Screen', 'Menu Items', 'TV Setup']
 
@@ -14,7 +15,7 @@ export default function OnboardingWizard() {
   const [screenSlug, setScreenSlug] = useState(null)
   const [items, setItems] = useState([])
 
-  const token = localStorage.getItem('menuvo_token')
+  const token = getToken()
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
 
   const handleCreateRestaurant = async (name) => {

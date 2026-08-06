@@ -1,8 +1,6 @@
-const API_BASE = '/api'
+import { getToken } from './token'
 
-function getToken() {
-  return localStorage.getItem('menuvo_token')
-}
+const API_BASE = '/api'
 
 async function request(method, path, body = null) {
   const headers = { 'Content-Type': 'application/json' }

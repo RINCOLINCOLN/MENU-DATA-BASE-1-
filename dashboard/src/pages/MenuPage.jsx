@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useToast } from '../contexts/ToastContext'
 import SkeletonLoader from '../components/SkeletonLoader'
+import { getToken, setToken, clearToken } from '../lib/token'
 
 export default function MenuPage() {
   const { screenId } = useParams()
@@ -14,7 +15,7 @@ export default function MenuPage() {
   const [screenUuid, setScreenUuid] = useState(null) // UUID for API calls
   const [screenSlug, setScreenSlug] = useState(null) // slug for navigation
 
-  const token = localStorage.getItem('menuvo_token')
+  const token = getToken()
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 
   // Fetch screen to get UUID, then fetch menu items
