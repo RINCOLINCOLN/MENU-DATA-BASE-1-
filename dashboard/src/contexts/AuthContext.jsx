@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { getToken, setToken, clearToken } from '../lib/token'
 
 const AuthContext = createContext(null)
 
@@ -8,7 +9,7 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState(null)
 
   const checkAuth = useCallback(async () => {
-    const token = localStorage.getItem('menuvo_token')
+    const token = getToken()
     if (!token) {
       setLoading(false)
       return
@@ -21,7 +22,7 @@ export function AuthProvider({ children }) {
         const data = await res.json()
         setUser(data.user || data)
       } else {
-        localStorage.removeItem('menuvo_token')
+        clearToken()
       }
     } catch {
       // Server not available, keep stored token for later
@@ -40,7 +41,7 @@ export function AuthProvider({ children }) {
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Login failed')
-    localStorage.setItem('menuvo_token', data.token)
+    setToken(data.token)
     setUser(data.user)
     return data
   }
@@ -54,13 +55,13 @@ export function AuthProvider({ children }) {
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Registration failed')
-    localStorage.setItem('menuvo_token', data.token)
+    setToken(data.token)
     setUser(data.user)
     return data
   }
 
   const logout = () => {
-    localStorage.removeItem('menuvo_token')
+    clearToken()
     setUser(null)
   }
 

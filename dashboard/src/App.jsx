@@ -11,6 +11,7 @@ import ScreensPage from './pages/ScreensPage'
 import ScreenDetailPage from './pages/ScreenDetailPage'
 import SettingsPage from './pages/SettingsPage'
 import TemplatesPage from './pages/TemplatesPage'
+import { getToken, setToken, clearToken } from './lib/token'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -27,7 +28,7 @@ function DashboardRoute() {
   useEffect(() => {
     const check = async () => {
       try {
-        const token = localStorage.getItem('menuvo_token')
+        const token = getToken()
         const res = await fetch('/api/restaurants', {
           headers: { Authorization: `Bearer ${token}` }
         })

@@ -4,6 +4,7 @@ import MenuItemCard from '../components/MenuItemCard'
 import PreviewModal from '../components/PreviewModal'
 import SkeletonLoader from '../components/SkeletonLoader'
 import { useToast } from '../contexts/ToastContext'
+import { getToken, setToken, clearToken } from '../lib/token'
 
 export default function ScreenDetailPage() {
   const { screenId } = useParams() // can be UUID or friendly slug
@@ -19,7 +20,7 @@ export default function ScreenDetailPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [assigningTemplate, setAssigningTemplate] = useState(false)
 
-  const token = localStorage.getItem('menuvo_token')
+  const token = getToken()
   const headers = { Authorization: `Bearer ${token}` }
 
   useEffect(() => {
