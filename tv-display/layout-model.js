@@ -180,24 +180,67 @@
   }
 
   /**
+   * Designer zone types that are text-only (never bind menu items unless
+   * the zone has an explicit binding).
+   */
+  var DESIGNER_TEXT_TYPES = ['header', 'category_header', 'footer', 'text'];
+  var DESIGNER_MENU_TYPES = ['menu_items', 'specials', 'menu'];
+
+  /**
+   * Determine the coordinate unit for a zone deterministically.
+   * Designer-authored zones (dashboard Screen Designer) always use
+   * PERCENT 0-100; legacy seed zones use FRACTIONS 0-1. Distinguish by
+   * structural markers so pixel-consistent rendering never depends on a
+   * value heuristic (a designer zone at x=0.5 is 0.5%, a legacy zone at
+   * x=0.5 is 50%).
+   * Returns 'percent' | 'fraction' | null (null → auto-detect per value).
+   */
+  function unitForZone(z) {
+    if (!isObj(z)) return null;
+    if (z.coords === 'percent' || z.coords === 'fraction') return z.coords;
+    var t = z.type || '';
+    if (DESIGNER_TEXT_TYPES.indexOf(t) !== -1 || DESIGNER_MENU_TYPES.indexOf(t) !== -1) return 'percent';
+    if (z.alignment || z.min_font_size || z.max_font_size || z.bg_color ||
+        z.category_filter || z.is_price !== undefined || z.font_size != null) {
+      return 'percent';
+    }
+    return null; // legacy shape → auto-detect (<=1 treated as fraction)
+  }
+
+  /**
    * Convert legacy text zones into layout elements so the same renderer
-   * path handles both models. Zones with item bindings (or items) become
-   * menu_items elements; header/footer zones become static text.
+   * path handles both models. Accepts BOTH the legacy seed shape
+   * ({x:0.04, align, font_size_min, font_size_max}) and the dashboard
+   * Screen Designer shape ({x:5, alignment, min_font_size, max_font_size,
+   * bg_color, category_filter, is_price, type}) — see LAYOUT_MODEL.md.
    */
   function legacyZonesToElements(zones, items) {
     items = items || [];
     return zones.map(function (z, i) {
-      var hasBinding = Array.isArray(z.item_ids) && z.item_ids.length > 0;
-      var zoneItems = hasBinding
-        ? items.filter(function (it) { return z.item_ids.indexOf(it.id) !== -1; })
-        : items;
       var type = z.type || '';
-      var isTextOnly = !hasBinding && zoneItems.length === 0 &&
-        (z.label || type === 'header' || type === 'category_header' || type === 'footer');
+      var hasBinding = (Array.isArray(z.item_ids) && z.item_ids.length > 0) ||
+        !!z.category_filter || !!z.category || !!z.text_zone_id;
+      var zoneItems = hasBinding
+        ? bindItems({
+            item_ids: z.item_ids, category: z.category_filter || z.category,
+            text_zone_id: z.text_zone_id
+          }, items)
+        : items;
+
+      var isTextOnly;
+      if (DESIGNER_TEXT_TYPES.indexOf(type) !== -1 && !hasBinding) {
+        isTextOnly = true;                    // designer header/footer/category/text
+      } else if (DESIGNER_MENU_TYPES.indexOf(type) !== -1) {
+        isTextOnly = false;                   // designer menu/specials
+      } else {
+        isTextOnly = !hasBinding && zoneItems.length === 0 &&
+          (z.label || type === 'header' || type === 'category_header' || type === 'footer');
+      }
       return {
         id: z.id || 'legacy-zone-' + i,
         type: isTextOnly ? 'text' : 'menu_items',
         x: z.x, y: z.y, width: z.width, height: z.height,
+        coords: unitForZone(z),               // deterministic unit, not value heuristic
         z_index: i,
         align: z.align || z.alignment || 'left',
         font_size: z.font_size,
@@ -209,12 +252,15 @@
         letter_spacing: z.letter_spacing,
         text_transform: z.text_transform,
         line_height: z.line_height,
-        background_color: z.background_color,
+        background_color: z.background_color || z.bg_color,
         padding: z.padding,
         border_radius: z.border_radius,
         opacity: z.opacity,
         text: z.label || '',
         item_ids: z.item_ids || [],
+        category: z.category_filter || z.category,
+        text_zone_id: z.text_zone_id,
+        show_price: z.is_price === false ? false : undefined,
       };
     });
   }
@@ -278,7 +324,7 @@
     div.className = 'layout-element lx-' + (el.type || 'text');
     if (el.id) div.setAttribute('data-el-id', el.id);
 
-    var coords = ctx.coords; // may be null → auto-detect per value
+    var coords = el.coords || ctx.coords; // may be null → auto-detect per value
     var x = toPercent(el.x, canvas, coords);
     var y = toPercent(el.y, canvas, coords);
     var w = toPercent(el.width, canvas, coords);
@@ -328,7 +374,7 @@
     if (el.text_transform && el.text_transform !== 'none') div.style.textTransform = el.text_transform;
     if (el.line_height) div.style.lineHeight = el.line_height;
 
-    var base = el.font_size || 48;
+    var base = el.font_size || el.font_size_max || 48;
     var min = el.font_size_min || 20;
     var max = el.font_size_max || 72;
     base = clamp(base, min, max);
@@ -372,8 +418,13 @@
     if (el.text_zone_id) {
       return items.filter(function (it) { return it.text_zone_id === el.text_zone_id; });
     }
-    if (el.category) {
-      return items.filter(function (it) { return it.category === el.category; });
+    // category_filter is the Screen Designer's field (substring, case-
+    // insensitive — matches the designer's live preview); `category` is the
+    // legacy exact-match alias.
+    var filter = el.category_filter || el.category;
+    if (filter) {
+      var q = String(filter).trim().toLowerCase();
+      if (q) return items.filter(function (it) { return String(it.category || '').toLowerCase().indexOf(q) !== -1; });
     }
     return items;
   }

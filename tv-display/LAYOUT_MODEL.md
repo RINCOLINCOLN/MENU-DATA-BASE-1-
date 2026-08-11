@@ -125,29 +125,84 @@ Fractions (0-1) are auto-detected unless `coords: "percent"` is set.
 - The whole canvas scales to any physical screen while preserving aspect
   ratio (elements are %-based, so layout is resolution-independent).
 
-## Legacy compatibility (no layout data)
+## Legacy compatibility (no layout data) — zones in `template.config_json`
 
-Existing templates keep working through the fallback path:
+Existing templates keep working through the fallback path. Zones are a
+**bare array** stored in `templates.config_json` (the dashboard Screen
+Designer writes exactly this; the API normalizes it to `template.text_zones`).
+
+The TV renderer accepts BOTH historical shapes deterministically:
+
+**1. Legacy seed shape — FRACTION coordinates (0-1), auto-detected:**
 
 ```json
-// template.text_zones  OR  template.config_json (array)  OR  config_json.zones
 [{
   "id": "zone-menu",
-  "x": 4, "y": 18, "width": 44, "height": 74,   // % or fraction (0-1)
-  "align": "left",                              // or "alignment"
-  "font_size": 38, "font_size_min": 14, "font_size_max": 42,
-  "color": "#ffffff", "label": "Main Menu"
+  "x": 0.04, "y": 0.18, "width": 0.44, "height": 0.74,   // fractions
+  "align": "left",                                       // legacy field
+  "font_size_min": 14, "font_size_max": 42,
+  "color": "#ffffff", "label": "Main Menu Items"
 }]
 ```
 
-Zones with item bindings (or items present) render as menu lists; zones
-with only a `label` render as static text.
+**2. Screen Designer shape — PERCENT coordinates (0-100):**
+
+```json
+[{
+  "id": "zone-msp1…",
+  "type": "header | category_header | footer | text | menu_items | specials",
+  "label": "Brew & Bean Café",
+  "x": 5, "y": 15, "width": 90, "height": 24,            // percent 0-100
+  "alignment": "center",                                  // NOT `align`
+  "font_size": 48, "min_font_size": 14, "max_font_size": 64,
+  "font_weight": "bold", "font_family": "Inter",
+  "color": "#ffffff", "bg_color": "transparent",         // NOT `background_color`
+  "is_price": false,                                      // price visibility
+  "category_filter": "",                                  // substring match
+  "item_ids": []
+}]
+```
+
+### Coordinate-unit rule (pixel consistency — IMPORTANT)
+
+Designer zones are **percent**; legacy seeds are **fractions**. The
+renderer decides per-zone, structurally (never by a value heuristic, so a
+designer zone at `x:0.5` is 0.5% and a legacy zone at `x:0.5` is 50%):
+
+- `coords: "percent" | "fraction"` on the zone wins explicitly.
+- Zones with designer markers (`type` in the designer set, `alignment`,
+  `min_font_size`, `max_font_size`, `bg_color`, `category_filter`,
+  `is_price`, or `font_size`) → **percent**.
+- Otherwise (legacy `align` / `font_size_min` shape) → **auto-detect**
+  (numbers ≤ 1 are fractions, > 1 are percents).
+
+### Field aliases accepted by the renderer
+
+| Canonical | Aliases (legacy / designer) |
+|-----------|------------------------------|
+| `align`   | `alignment`                   |
+| `font_size_min` / `font_size_max` | `min_font_size` / `max_font_size` |
+| `background_color` | `bg_color`             |
+| `category` (exact match) | `category_filter` (substring, case-insensitive) |
+| `show_price` | `is_price` (false → hide prices) |
+
+### Type → rendering
+
+- `header`, `category_header`, `footer`, `text` → static text (the zone's
+  `label`); NEVER binds menu items unless the zone explicitly sets
+  `item_ids`/`category_filter`.
+- `menu_items`, `specials` → menu list (name + price rows, SOLD OUT
+  badges). `specials` typically carries a `bg_color` highlight.
+- Legacy zones (no `type`) with items available → menu list of all items;
+  with no items and a label → static text (original behavior preserved).
 
 ## Testing
 
 - Open the TV app (`/tv/?slug=<slug>`), press `d` for the debug bar.
 - **Load Layout Demo** (`__simulateLayout()`) — full canvas layout.
 - **Load Legacy Demo** (`__simulateLegacy()`) — legacy zones fallback.
+- Live designer-authored screen: `/tv/?slug=browser-e2e-board` (2 zones
+  persisted by the dashboard Screen Designer — header text + menu).
 - `test.html` includes layout + legacy + offline coverage.
 
 See `layout-model.js` for the reference implementation.
