@@ -1,15 +1,5 @@
-import { useState } from 'react'
-
-export default function MenuItemCard({ item, onToggleSoldOut }) {
-  const [toggling, setToggling] = useState(false)
+export default function MenuItemCard({ item, onToggleSoldOut, syncing = false }) {
   const isSoldOut = item.availability === 'sold_out'
-
-  const handleToggle = async () => {
-    if (toggling) return
-    setToggling(true)
-    await onToggleSoldOut()
-    setToggling(false)
-  }
 
   return (
     <div className="px-5 py-3.5 flex items-center gap-4 hover:bg-brand-surface-alt/50 transition-colors">
@@ -38,15 +28,25 @@ export default function MenuItemCard({ item, onToggleSoldOut }) {
         </div>
       </div>
       <button
-        onClick={handleToggle}
-        disabled={toggling}
+        onClick={() => !syncing && onToggleSoldOut()}
+        disabled={syncing}
+        aria-label={isSoldOut ? 'Mark available' : 'Mark sold out'}
         className={`min-w-[80px] h-9 rounded-lg text-xs font-bold transition-all duration-150 touch-manipulation ${
           isSoldOut
             ? 'bg-green-500 hover:bg-green-600 text-white shadow-[0_0_10px_rgba(34,197,94,0.3)]'
             : 'bg-red-500 hover:bg-red-600 text-white shadow-[0_0_10px_rgba(239,68,68,0.3)]'
-        } ${toggling ? 'opacity-50' : ''}`}
+        } ${syncing ? 'opacity-50 cursor-default' : 'active:scale-95'}`}
       >
-        {toggling ? '...' : isSoldOut ? 'Available' : 'Sold Out'}
+        {syncing ? (
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-white/80 animate-pulse" />
+            Syncing
+          </span>
+        ) : isSoldOut ? (
+          'Available'
+        ) : (
+          'Sold Out'
+        )}
       </button>
     </div>
   )

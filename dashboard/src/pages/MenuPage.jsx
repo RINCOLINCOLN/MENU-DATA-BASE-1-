@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useToast } from '../contexts/ToastContext'
 import SkeletonLoader from '../components/SkeletonLoader'
-import { getToken, setToken, clearToken } from '../lib/token'
+import api from '../lib/api'
 
 export default function MenuPage() {
   const { screenId } = useParams()
@@ -15,16 +15,11 @@ export default function MenuPage() {
   const [screenUuid, setScreenUuid] = useState(null) // UUID for API calls
   const [screenSlug, setScreenSlug] = useState(null) // slug for navigation
 
-  const token = getToken()
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
-
   // Fetch screen to get UUID, then fetch menu items
   const fetchScreenAndItems = async () => {
     try {
       // First get the screen to resolve UUID from slug
-      const sRes = await fetch(`/api/screens/${screenId}`, { headers })
-      if (!sRes.ok) { setLoading(false); return }
-      const sData = await sRes.json()
+      const sData = await api.getScreen(screenId)
       const uuid = sData.screen?.id
       const slug = sData.screen?.unique_slug
       setScreenUuid(uuid)
@@ -32,11 +27,8 @@ export default function MenuPage() {
 
       // Fetch menu items using UUID
       if (uuid) {
-        const res = await fetch(`/api/screens/${uuid}/menu-items`, { headers })
-        if (res.ok) {
-          const data = await res.json()
-          setItems(data.menu_items || [])
-        }
+        const data = await api.getMenuItems(uuid)
+        setItems(data.menu_items || [])
       }
     } catch {}
     setLoading(false)
@@ -46,61 +38,45 @@ export default function MenuPage() {
 
   const handleToggle = async (item) => {
     const newAvail = item.availability === 'sold_out' ? 'available' : 'sold_out'
-    const optim = items.map(i => i.id === item.id ? { ...i, availability: newAvail } : i)
-    setItems(optim)
+    const prev = items
+    // Optimistic UI — flip instantly, persist in background, revert on failure.
+    setItems(items.map(i => i.id === item.id ? { ...i, availability: newAvail } : i))
     try {
-      const res = await fetch(`/api/menu-items/${item.id}`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({ availability: newAvail }),
-      })
-      if (!res.ok) { fetchScreenAndItems(); addToast('Toggle failed', 'error') }
-    } catch { fetchScreenAndItems(); addToast('Network error', 'error') }
+      const updated = await api.toggleSoldOut(item.id, newAvail)
+      setItems(prevItems => prevItems.map(i =>
+        i.id === item.id ? (updated.menu_item || i) : i
+      ))
+    } catch (err) {
+      setItems(prev)
+      addToast(err.message || 'Toggle failed', 'error')
+    }
   }
 
   const handleSaveItem = async (itemId, data) => {
     try {
-      const res = await fetch(`/api/menu-items/${itemId}`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify(data),
-      })
-      if (res.ok) {
-        addToast('Item updated', 'success')
-        setEditingId(null)
-        fetchScreenAndItems()
-      } else {
-        addToast('Save failed', 'error')
-      }
-    } catch { addToast('Network error', 'error') }
+      await api.updateMenuItem(itemId, data)
+      addToast('Item updated', 'success')
+      setEditingId(null)
+      fetchScreenAndItems()
+    } catch (err) { addToast(err.message || 'Save failed', 'error') }
   }
 
   const handleAddItem = async (data) => {
     try {
-      const res = await fetch(`/api/screens/${screenUuid}/menu-items`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(data),
-      })
-      if (res.ok) {
-        addToast('Item added', 'success')
-        setAddOpen(false)
-        fetchScreenAndItems()
-      } else {
-        addToast('Failed to add item', 'error')
-      }
-    } catch { addToast('Network error', 'error') }
+      await api.createMenuItem(screenUuid, data)
+      addToast('Item added', 'success')
+      setAddOpen(false)
+      fetchScreenAndItems()
+    } catch (err) { addToast(err.message || 'Failed to add item', 'error') }
   }
 
   const handleDelete = async (itemId) => {
     if (!confirm('Delete this item?')) return
     try {
-      const res = await fetch(`/api/menu-items/${itemId}`, { method: 'DELETE', headers })
-      if (res.ok) {
-        addToast('Item deleted', 'success')
-        fetchScreenAndItems()
-      }
-    } catch { addToast('Delete failed', 'error') }
+      await api.deleteMenuItem(itemId)
+      addToast('Item deleted', 'success')
+      fetchScreenAndItems()
+    } catch (err) { addToast(err.message || 'Delete failed', 'error') }
   }
 
   if (loading) return <SkeletonLoader />
