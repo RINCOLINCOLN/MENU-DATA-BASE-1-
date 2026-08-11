@@ -6,6 +6,7 @@
 const CACHE_VERSION = 'lumenu-v1';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const VIDEO_CACHE = `${CACHE_VERSION}-video`;
+const IMAGE_CACHE = `${CACHE_VERSION}-images`;
 const DATA_CACHE = `${CACHE_VERSION}-data`;
 
 const TV_PREFIX = '/tv';
@@ -14,6 +15,7 @@ const PRECACHE_URLS = [
   TV_PREFIX + '/index.html',
   TV_PREFIX + '/app.css',
   TV_PREFIX + '/app.js',
+  TV_PREFIX + '/layout-model.js',
   TV_PREFIX + '/manifest.json',
   TV_PREFIX + '/assets/fallback.svg',
 ];
@@ -55,7 +57,7 @@ self.addEventListener('activate', (event) => {
     (async () => {
       const cacheNames = await caches.keys();
       const oldCaches = cacheNames.filter(
-        (name) => (name.startsWith('lumenu-') || name.startsWith('menuloop-')) && name !== STATIC_CACHE && name !== VIDEO_CACHE && name !== DATA_CACHE
+        (name) => (name.startsWith('lumenu-') || name.startsWith('menuloop-')) && name !== STATIC_CACHE && name !== VIDEO_CACHE && name !== IMAGE_CACHE && name !== DATA_CACHE
       );
       await Promise.all(oldCaches.map((name) => caches.delete(name)));
       return self.clients.claim();
@@ -80,9 +82,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Background/image assets (layout backgrounds, logos) use cache-first
+  if (path.match(/\.(png|jpg|jpeg|webp|gif|avif)$/i)) {
+    event.respondWith(cacheFirst(event.request, IMAGE_CACHE));
+    return;
+  }
+
   // Static assets use stale-while-revalidate for freshness + speed
   const isIndex = path === '/index.html' || path === TV_PREFIX + '/index.html' || path === '/' || path === TV_PREFIX + '/';
-  if (path.match(/\.(css|js|json|png|jpg|jpeg|svg|ico)$/i) || isIndex) {
+  if (path.match(/\.(css|js|json|svg|ico)$/i) || isIndex) {
     event.respondWith(staleWhileRevalidate(event.request, STATIC_CACHE));
     return;
   }
