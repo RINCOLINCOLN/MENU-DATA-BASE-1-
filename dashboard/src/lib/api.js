@@ -66,6 +66,10 @@ export const api = {
   getScreens: (restaurantId) =>
     request('GET', `/restaurants/${restaurantId}/screens`),
   getScreen: (screenId) => request('GET', `/screens/${screenId}`),
+  createScreen: (restaurantId, data) =>
+    request('POST', `/restaurants/${restaurantId}/screens`, data),
+  updateScreen: (screenId, data) =>
+    request('PATCH', `/screens/${screenId}`, data),
   getScreenHealth: (slug) => request('GET', `/screens/${slug}/health`),
   deleteScreen: (screenId) => request('DELETE', `/screens/${screenId}`),
   reorderScreens: (screenIds) =>
@@ -87,6 +91,8 @@ export const api = {
   // Template management
   getTemplates: () => request('GET', '/templates'),
   getTemplateById: (id) => request('GET', `/templates/${id}`),
+  createTemplate: (data) => request('POST', '/templates', data),
+  updateTemplate: (id, data) => request('PATCH', `/templates/${id}`, data),
   deleteTemplate: (id) => request('DELETE', `/templates/${id}`),
   // Screen Data (for preview — uses slug public endpoint)
   getScreenData: (slug) => request('GET', `/screens/${slug}/data`),

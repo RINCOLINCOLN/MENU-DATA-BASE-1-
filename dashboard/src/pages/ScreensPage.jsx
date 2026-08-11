@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import SkeletonLoader from '../components/SkeletonLoader'
 import { useToast } from '../contexts/ToastContext'
 import { api } from '../lib/api'
@@ -11,7 +11,9 @@ export default function ScreensPage() {
   const [busyId, setBusyId] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)
   const { addToast } = useToast()
+  const navigate = useNavigate()
 
   const fetchScreens = async () => {
     try {
@@ -105,13 +107,25 @@ export default function ScreensPage() {
     }
   }
 
+  const handleScreenCreated = async (screen) => {
+    setAddOpen(false)
+    addToast(`"${screen.name}" created — design it now`, 'success')
+    fetchScreens()
+    // Jump straight into the designer for the new display
+    navigate(`/dashboard/screens/${screen.unique_slug}/design`)
+  }
+
   if (loading) return <SkeletonLoader />
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-brand-text">Screens</h1>
-        <p className="text-brand-muted mt-1 text-sm">All your TV screens across locations</p>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-brand-text">Screens</h1>
+          <p className="text-brand-muted mt-1 text-sm">All your TV screens across locations</p>
+        </div>
+        <button onClick={() => setAddOpen(true)}
+          className="btn-primary flex items-center gap-1.5 shrink-0">＋ Add Screen</button>
       </div>
 
       {screens.length === 0 ? (
@@ -193,12 +207,148 @@ export default function ScreensPage() {
           onConfirm={handleDelete}
         />
       )}
+
+      {addOpen && (
+        <AddScreenModal onClose={() => setAddOpen(false)} onCreated={handleScreenCreated} />
+      )}
     </div>
   )
 }
 
 function BadgeOnline() {
   return <span className="badge-green">Unknown</span>
+}
+
+function AddScreenModal({ onClose, onCreated }) {
+  const [restaurants, setRestaurants] = useState([])
+  const [templates, setTemplates] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [restaurantId, setRestaurantId] = useState('')
+  const [name, setName] = useState('')
+  const [orientation, setOrientation] = useState('landscape')
+  const [templateId, setTemplateId] = useState('')
+  const [creating, setCreating] = useState(false)
+  const { addToast } = useToast()
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [r, t] = await Promise.all([api.getRestaurants(), api.getTemplates()])
+        setRestaurants(r.restaurants || [])
+        setTemplates(t.templates || [])
+        if ((r.restaurants || []).length === 1) setRestaurantId(r.restaurants[0].id)
+      } catch {
+        addToast('Could not load locations', 'error')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleCreate = async (e) => {
+    e.preventDefault()
+    if (!name.trim()) { addToast('Give the screen a name', 'error'); return }
+    if (!restaurantId) { addToast('Choose a location', 'error'); return }
+    setCreating(true)
+    try {
+      const res = await api.createScreen(restaurantId, {
+        name: name.trim(),
+        orientation,
+        template_id: templateId || undefined,
+      })
+      onCreated(res.screen)
+    } catch (err) {
+      addToast(err.message || 'Could not create screen', 'error')
+      setCreating(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={() => { if (!creating) onClose() }}>
+      <div className="bg-brand-surface rounded-2xl w-full max-w-lg p-6 shadow-2xl border border-brand-border/50 max-h-[90vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-bold text-brand-text">Add Screen</h3>
+            <p className="text-sm text-brand-muted">Create a new TV display — you can design it right after.</p>
+          </div>
+          <button onClick={onClose} disabled={creating}
+            className="p-1.5 hover:bg-brand-surface-alt/70 rounded-lg text-brand-muted">✕</button>
+        </div>
+
+        {loading ? (
+          <div className="animate-pulse space-y-3">
+            <div className="h-11 skeleton rounded-lg" />
+            <div className="h-11 skeleton rounded-lg" />
+            <div className="h-11 skeleton rounded-lg" />
+          </div>
+        ) : (
+          <form onSubmit={handleCreate} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-brand-text/80 mb-1">Location</label>
+              {restaurants.length === 0 ? (
+                <p className="text-sm text-brand-muted/70 bg-brand-surface-alt/50 rounded-lg p-3">
+                  No locations yet — <Link to="/onboarding" className="text-amber-400 hover:underline font-medium">add one first</Link>.
+                </p>
+              ) : (
+                <select className="input-field" value={restaurantId} onChange={e => setRestaurantId(e.target.value)} required>
+                  <option value="">Select a location...</option>
+                  {restaurants.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-brand-text/80 mb-1">Screen name</label>
+              <input className="input-field" placeholder="e.g. Drive-Thru Board, Breakfast Menu, Bar Display"
+                value={name} onChange={e => setName(e.target.value)} autoFocus required />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-brand-text/80 mb-1">Orientation</label>
+              <div className="flex gap-3">
+                {[
+                  { value: 'landscape', icon: '🖥️', label: 'Landscape (16:9)' },
+                  { value: 'portrait', icon: '📱', label: 'Portrait (9:16)' },
+                ].map(o => (
+                  <button key={o.value} type="button" onClick={() => setOrientation(o.value)}
+                    className={`flex-1 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
+                      orientation === o.value ? 'border-amber-400 bg-amber-400/10 text-amber-300' : 'border-brand-border/50 text-brand-muted'
+                    }`}>
+                    <span className="mr-1.5">{o.icon}</span>{o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-brand-text/80 mb-1">
+                Background template <span className="text-brand-muted/60 font-normal">(optional — start plain, add later)</span>
+              </label>
+              <select className="input-field" value={templateId} onChange={e => setTemplateId(e.target.value)}>
+                <option value="">No background yet</option>
+                {templates.map(t => (
+                  <option key={t.id} value={t.id}>{t.name} {t.orientation ? `(${t.orientation})` : ''}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex gap-3 justify-end pt-2">
+              <button type="button" onClick={onClose} disabled={creating} className="btn-secondary">Cancel</button>
+              <button type="submit" disabled={creating || !name.trim() || !restaurantId}
+                className="btn-primary flex items-center gap-2 touch-manipulation">
+                {creating && <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />}
+                {creating ? 'Creating...' : 'Create Screen'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function DeleteScreenModal({ screen, deleting, onClose, onConfirm }) {

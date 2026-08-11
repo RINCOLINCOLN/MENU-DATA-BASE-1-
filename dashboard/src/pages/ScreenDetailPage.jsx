@@ -117,8 +117,10 @@ export default function ScreenDetailPage() {
         </div>
       </div>
       <div className="flex gap-3 flex-wrap">
+        <Link to={`/dashboard/screens/${screenId}/design`}
+          className="btn-primary flex items-center gap-2">🎨 Design Screen</Link>
         <Link to={`/dashboard/screens/${screenId}/menu`}
-          className="btn-primary flex items-center gap-2">✏️ Edit Menu</Link>
+          className="btn-secondary flex items-center gap-2">✏️ Edit Menu</Link>
         {screen.unique_slug && (
           <button onClick={() => setPreviewOpen(true)}
             className="btn-secondary flex items-center gap-2">👁️ Preview TV</button>
