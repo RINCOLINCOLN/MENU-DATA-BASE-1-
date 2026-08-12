@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import SkeletonLoader from '../components/SkeletonLoader'
 import { useAuth } from '../contexts/AuthContext'
+import { getToken, setToken, clearToken } from '../lib/token'
 
 export default function DashboardHome() {
   const [restaurants, setRestaurants] = useState([])
@@ -14,7 +15,7 @@ export default function DashboardHome() {
 
   const fetchData = useCallback(async () => {
     try {
-      const token = localStorage.getItem('menuvo_token')
+      const token = getToken()
       const headers = { Authorization: `Bearer ${token}` }
 
       const res = await fetch('/api/restaurants', { headers })

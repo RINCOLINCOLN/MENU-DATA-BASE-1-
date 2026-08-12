@@ -35,6 +35,9 @@
            poster="assets/fallback.svg">
     </video>
 
+    <!-- Layout Background Layer (image/color backgrounds from a layout) -->
+    <div id="layout-background" class="hidden"></div>
+
     <!-- Text Overlay Layer -->
     <div id="overlay-layer"></div>
 
@@ -60,11 +63,14 @@
     <span><span class="dbg-label">Mode:</span> <span id="debug-mode">—</span></span>
     <span><span class="dbg-label">Online:</span> <span id="debug-online">—</span></span>
     <span><span class="dbg-label">Data:</span> <span id="debug-data">—</span></span>
+    <span><span class="dbg-label">Render:</span> <span id="debug-render">—</span></span>
     <button class="dbg-btn" onclick="__toggleOffline()">Toggle Offline</button>
-    <button class="dbg-btn" onclick="__simulateData()">Load Test Data</button>
+    <button class="dbg-btn" onclick="__simulateLayout()">Load Layout Demo</button>
+    <button class="dbg-btn" onclick="__simulateLegacy()">Load Legacy Demo</button>
     <button class="dbg-btn" onclick="__toggleDebug()">Hide Debug</button>
   </div>
 
+  <script src="layout-model.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

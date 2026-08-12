@@ -29,8 +29,7 @@ app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Public root is owned by the marketing landing process on port 3002.
-// Keep the dashboard isolated under /app so a restart cannot accidentally make
-// the login shell the public homepage.
+// Keep the dashboard isolated under /app so a restart cannot make login the homepage.
 const landingOrigin = 'http://127.0.0.1:3002';
 app.get('/', async (req, res, next) => {
   try {
@@ -40,7 +39,10 @@ app.get('/', async (req, res, next) => {
     landing.headers.forEach((value, key) => {
       if (key.toLowerCase() !== 'content-length') res.setHeader(key, value);
     });
-    res.send(Buffer.from(await landing.arrayBuffer()));
+    const html = await landing.text();
+    // Keep landing assets separate from dashboard assets. Both apps build to
+    // /assets, but Express owns the dashboard path on the public origin.
+    res.send(html.replaceAll('/assets/', '/site-assets/'));
   } catch {
     next();
   }
@@ -49,6 +51,7 @@ const dashboardDistPath = path.join(__dirname, '..', 'dashboard', 'dist');
 app.use('/app', express.static(dashboardDistPath));
 // Dashboard assets use absolute /assets paths; expose assets without making the
 // dashboard index available at root.
+app.use('/site-assets', express.static(path.join('/home/team/shared/site', 'dist', 'client', 'assets')));
 app.use('/assets', express.static(path.join(dashboardDistPath, 'assets')));
 app.use('/favicon.svg', express.static(path.join(dashboardDistPath, 'favicon.svg')));
 

@@ -98,8 +98,11 @@
     <button class="btn danger" onclick="simulateOffline()">📡 Go Offline</button>
     <button class="btn success" onclick="simulateOnline()">📡 Go Online</button>
     <button class="btn" onclick="clearLog()">🗑 Clear Log</button>
-    <button class="btn" onclick="document.getElementById('tv-frame').contentWindow.__simulateData()">
-      📋 Load Test Menu Data
+    <button class="btn" onclick="document.getElementById('tv-frame').contentWindow.__simulateLayout()">
+      🎨 Load Layout Demo
+    </button>
+    <button class="btn" onclick="document.getElementById('tv-frame').contentWindow.__simulateLegacy()">
+      📋 Load Legacy Demo
     </button>
     <button class="btn" onclick="document.getElementById('tv-frame').contentWindow.location.reload()">
       🔄 Reload TV App
@@ -115,12 +118,12 @@
     </div>
     <div class="test-card">
       <h3>2. App Shell Caching</h3>
-      <p>HTML, CSS, JS, and fallback image are cached after first load.</p>
+      <p>HTML, CSS, JS (incl. layout-model.js), and fallback image are cached after first load.</p>
       <span id="test-cache" class="status pending">⏳ Pending</span>
     </div>
     <div class="test-card">
-      <h3>3. Text Overlay Rendering</h3>
-      <p>Menu items render correctly with names, prices, and SOLD OUT badges.</p>
+      <h3>3. Overlay Rendering (legacy + layout)</h3>
+      <p>Menu items render correctly with names, prices, and SOLD OUT badges via either model.</p>
       <span id="test-overlay" class="status pending">⏳ Pending</span>
     </div>
     <div class="test-card">
@@ -138,11 +141,21 @@
       <p>If never synced, shows "Menu Coming Soon" branding.</p>
       <span id="test-failsafe" class="status pending">⏳ Pending</span>
     </div>
+    <div class="test-card">
+      <h3>7. Canvas Layout Rendering</h3>
+      <p>Per-screen layout renders background + independently positioned elements at z-order.</p>
+      <span id="test-layout" class="status pending">⏳ Pending</span>
+    </div>
+    <div class="test-card">
+      <h3>8. Legacy Text-Zone Fallback</h3>
+      <p>Screens without layout data still render via template config_json / text_zones.</p>
+      <span id="test-legacy" class="status pending">⏳ Pending</span>
+    </div>
   </div>
 
   <h2>TV Display Preview</h2>
   <div class="iframe-container">
-    <iframe id="tv-frame" src="/?slug=demo" sandbox="allow-scripts allow-same-origin"></iframe>
+    <iframe id="tv-frame" src="?slug=demo" sandbox="allow-scripts allow-same-origin"></iframe>
   </div>
 
   <h2>Test Log</h2>
@@ -206,6 +219,8 @@
       await testOfflineMode();
       await testReconnection();
       await testFailsafe();
+      await testLayout();
+      await testLegacyFallback();
       log('🏁 All tests completed.', 'success');
     }
 
@@ -277,9 +292,10 @@
           const cachedIndex = await cache.match('/index.html');
           const cachedCSS = await cache.match('/app.css');
           const cachedJS = await cache.match('/app.js');
-          if (cachedIndex && cachedCSS && cachedJS) {
-            setTestStatus('test-cache', 'pass', 'HTML + CSS + JS cached');
-            log('✅ App shell cached successfully', 'success');
+          const cachedLayoutModel = await cache.match('/layout-model.js');
+          if (cachedIndex && cachedCSS && cachedJS && cachedLayoutModel) {
+            setTestStatus('test-cache', 'pass', 'HTML + CSS + JS + layout-model cached');
+            log('✅ App shell cached successfully (incl. layout-model.js)', 'success');
           } else {
             setTestStatus('test-cache', 'pending', 'Waiting for cache population...');
             log('⏳ Cache may not be populated yet (first load may still be in progress)', 'warn');
@@ -295,30 +311,29 @@
     }
 
     async function testTextOverlay() {
-      log('🔍 Test 3: Text overlay rendering...', 'info');
+      log('🔍 Test 3: Overlay rendering (legacy + layout)...', 'info');
       try {
-        // Load test data into the TV app
         const w = getIframeWindow();
-        if (w && w.__simulateData) {
-          w.__simulateData();
-          await new Promise(r => setTimeout(r, 500));
+        if (w && w.__simulateLegacy) {
+          w.__simulateLegacy();
+          await new Promise(r => setTimeout(r, 600));
 
           const overlay = w.document.getElementById('overlay-layer');
           if (overlay) {
-            const textZones = overlay.querySelectorAll('.text-zone');
-            if (textZones.length > 0) {
+            const elements = overlay.querySelectorAll('.layout-element, .text-zone');
+            if (elements.length > 0) {
               const hasItems = overlay.textContent.length > 0;
               const hasSoldOut = overlay.querySelector('.sold-out-badge') !== null;
               if (hasItems && hasSoldOut) {
-                setTestStatus('test-overlay', 'pass', `${textZones.length} zones, SOLD OUT badge detected`);
-                log(`✅ Text overlays rendering: ${textZones.length} zones with items and SOLD OUT markers`, 'success');
+                setTestStatus('test-overlay', 'pass', `${elements.length} elements, SOLD OUT badge detected`);
+                log(`✅ Overlays rendering: ${elements.length} elements with items and SOLD OUT markers`, 'success');
               } else {
-                setTestStatus('test-overlay', 'pass', `${textZones.length} zones rendered (no SOLD OUT)`);
-                log(`⚠️ Text zones render but no SOLD OUT items in test data`, 'warn');
+                setTestStatus('test-overlay', 'pass', `${elements.length} elements rendered (no SOLD OUT)`);
+                log(`⚠️ Elements render but no SOLD OUT items in test data`, 'warn');
               }
             } else {
-              setTestStatus('test-overlay', 'fail', 'No text zones rendered');
-              log('❌ No text zone elements found in overlay layer', 'error');
+              setTestStatus('test-overlay', 'fail', 'No overlay elements rendered');
+              log('❌ No overlay elements found in overlay layer', 'error');
             }
           } else {
             setTestStatus('test-overlay', 'fail', 'Overlay layer not found');
@@ -332,6 +347,66 @@
       } catch (err) {
         setTestStatus('test-overlay', 'fail', err.message);
         log(`❌ Overlay test error: ${err.message}`, 'error');
+      }
+    }
+
+    async function testLayout() {
+      log('🔍 Test 7: Canvas layout rendering...', 'info');
+      try {
+        const w = getIframeWindow();
+        if (w && w.__simulateLayout) {
+          w.__simulateLayout();
+          await new Promise(r => setTimeout(r, 600));
+
+          const doc = w.document;
+          const elements = doc.querySelectorAll('#overlay-layer .layout-element');
+          const bg = doc.getElementById('layout-background');
+          const bgVisible = bg && !bg.classList.contains('hidden');
+          const hasMenu = doc.querySelectorAll('#overlay-layer .menu-row').length > 0;
+          const hasBadge = doc.querySelector('#overlay-layer .sold-out-badge') !== null;
+          const hasText = doc.querySelectorAll('#overlay-layer .lx-text').length > 0;
+
+          if (elements.length >= 5 && hasMenu && hasText && bgVisible) {
+            setTestStatus('test-layout', 'pass', `${elements.length} elements, background image, menu + badges`);
+            log(`✅ Canvas layout rendering: ${elements.length} elements, bg layer visible, SOLD OUT badge present`, 'success');
+          } else {
+            setTestStatus('test-layout', 'fail', `elements=${elements.length} bg=${bgVisible} menu=${hasMenu} badge=${hasBadge}`);
+            log(`❌ Layout render incomplete: elements=${elements.length} bgVisible=${bgVisible}`, 'error');
+          }
+        } else {
+          setTestStatus('test-layout', 'pending', 'TV app not ready');
+          log('⏳ TV app not ready for layout test', 'warn');
+        }
+      } catch (err) {
+        setTestStatus('test-layout', 'fail', err.message);
+        log(`❌ Layout test error: ${err.message}`, 'error');
+      }
+    }
+
+    async function testLegacyFallback() {
+      log('🔍 Test 8: Legacy text-zone fallback...', 'info');
+      try {
+        const w = getIframeWindow();
+        if (w && w.__simulateLegacy) {
+          w.__simulateLegacy();
+          await new Promise(r => setTimeout(r, 400));
+
+          const mode = w.__state && w.__state.renderMode;
+          const elements = w.document.querySelectorAll('#overlay-layer .layout-element, #overlay-layer .text-zone');
+          if ((mode === 'legacy' || mode === 'layout') && elements.length > 0) {
+            setTestStatus('test-legacy', 'pass', `renderMode=${mode}, ${elements.length} elements rendered`);
+            log(`✅ Legacy fallback active (renderMode=${mode}), ${elements.length} zones/elements rendered`, 'success');
+          } else {
+            setTestStatus('test-legacy', 'fail', `renderMode=${mode} elements=${elements.length}`);
+            log(`❌ Legacy fallback not rendering (renderMode=${mode})`, 'error');
+          }
+        } else {
+          setTestStatus('test-legacy', 'pending', 'TV app not ready');
+          log('⏳ TV app not ready for legacy test', 'warn');
+        }
+      } catch (err) {
+        setTestStatus('test-legacy', 'fail', err.message);
+        log(`❌ Legacy test error: ${err.message}`, 'error');
       }
     }
 

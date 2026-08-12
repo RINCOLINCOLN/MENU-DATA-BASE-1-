@@ -1,0 +1,4 @@
+
+# Built dashboard bundle — generated; build locally with `npm run build`.
+# (was tracked historically; untracked so repo syncs never revert it to a stale Menuvo build)
+dist/

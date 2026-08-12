@@ -8,6 +8,7 @@ Offline-first Progressive Web App for Android TV boxes. Displays cinematic anima
 tv-display/
 ├── index.html           # App shell (fullscreen 1920×1080)
 ├── app.js               # Main application logic (vanilla JS)
+├── layout-model.js      # Canvas layout model + renderer (background + elements)
 ├── app.css              # Styles (kiosk mode, responsive scaling)
 ├── service-worker.js    # Offline-first caching strategies
 ├── manifest.json        # PWA manifest (standalone, landscape)
@@ -15,9 +16,26 @@ tv-display/
 │   ├── fallback.svg     # Placeholder for when no data exists
 │   └── (video files)    # Cached menu background videos
 ├── test.html            # Self-contained test suite
+├── LAYOUT_MODEL.md      # Contract for the per-screen canvas layout model
 ├── serve.js             # Local dev server (Node.js, port 3000)
 └── package.json
 ```
+
+## Rendering models
+
+The display renders in one of two modes (see `LAYOUT_MODEL.md` for the full
+contract):
+
+1. **Canvas layout** (new) — per-screen `layout` with a background
+   (`video | image | color | none`) plus independently positioned/resized
+   elements: `text`, `menu_items`, `image`, `shape`. Elements support
+   z-index, visibility, opacity, alignment, typography, and auto-shrink.
+2. **Legacy text zones** (fallback) — existing screens/templates without
+   layout data keep working via `template.text_zones` /
+   `template.config_json` (array or `.zones`).
+
+Press **D** for the debug bar: it shows the active render mode and has
+**Load Layout Demo** / **Load Legacy Demo** buttons.
 
 ## Offline Modes
 

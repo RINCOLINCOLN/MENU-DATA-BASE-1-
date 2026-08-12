@@ -4,6 +4,7 @@ import MenuItemCard from '../components/MenuItemCard'
 import PreviewModal from '../components/PreviewModal'
 import SkeletonLoader from '../components/SkeletonLoader'
 import { useToast } from '../contexts/ToastContext'
+import api from '../lib/api'
 
 export default function ScreenDetailPage() {
   const { screenId } = useParams() // can be UUID or friendly slug
@@ -18,44 +19,36 @@ export default function ScreenDetailPage() {
   const [templates, setTemplates] = useState([])
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [assigningTemplate, setAssigningTemplate] = useState(false)
-
-  const token = localStorage.getItem('menuvo_token')
-  const headers = { Authorization: `Bearer ${token}` }
+  const [syncingIds, setSyncingIds] = useState(new Set())
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [sRes, tRes] = await Promise.allSettled([
-          fetch(`/api/screens/${screenId}`, { headers }),
-          fetch('/api/templates', { headers }),
+          api.getScreen(screenId),
+          api.getTemplates(),
         ])
-        if (sRes.status === 'fulfilled' && sRes.value.ok) {
-          const data = await sRes.value.json()
+        if (sRes.status === 'fulfilled') {
+          const data = sRes.value
           setScreen(data.screen)
-          setScreenUuid(data.screen?.id) // store UUID for subsequent API calls
+          setScreenUuid(data.screen?.id)
           setSelectedTemplateId(data.screen?.template_id || '')
-          // Fetch health by slug
           const slug = data.screen?.unique_slug
           if (slug) {
             try {
-              const hRes = await fetch(`/api/screens/${slug}/health`)
-              if (hRes.ok) setHealth(await hRes.json())
+              const hRes = await api.getScreenHealth(slug)
+              setHealth(hRes)
             } catch {}
           }
-          // Fetch menu items using the UUID (not slug)
           if (data.screen?.id) {
             try {
-              const iRes = await fetch(`/api/screens/${data.screen.id}/menu-items`, { headers })
-              if (iRes.ok) {
-                const iData = await iRes.json()
-                setMenuItems(iData.menu_items || [])
-              }
+              const iData = await api.getMenuItems(data.screen.id)
+              setMenuItems(iData.menu_items || [])
             } catch {}
           }
         }
-        if (tRes.status === 'fulfilled' && tRes.value.ok) {
-          const data = await tRes.value.json()
-          setTemplates(data.templates || [])
+        if (tRes.status === 'fulfilled') {
+          setTemplates(tRes.value.templates || [])
         }
       } catch { /* server not ready */ }
       setLoading(false)
@@ -64,34 +57,41 @@ export default function ScreenDetailPage() {
   }, [screenId])
 
   const handleToggleSoldOut = async (itemId, currentAvailability) => {
+    const newAvailability = currentAvailability === 'sold_out' ? 'available' : 'sold_out'
+    const prev = menuItems
+    // Optimistic UI — flip instantly, then persist. Mid-rush this must feel instant.
+    setMenuItems(prevItems => prevItems.map(i =>
+      i.id === itemId ? { ...i, availability: newAvailability } : i
+    ))
+    setSyncingIds(prev => new Set(prev).add(itemId))
     try {
-      const newAvailability = currentAvailability === 'sold_out' ? 'available' : 'sold_out'
-      const res = await fetch(`/api/menu-items/${itemId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ availability: newAvailability }),
+      const updated = await api.toggleSoldOut(itemId, newAvailability)
+      setMenuItems(prevItems => prevItems.map(i =>
+        i.id === itemId ? (updated.menu_item || i) : i
+      ))
+      addToast(newAvailability === 'sold_out' ? 'Marked as sold out!' : 'Marked as available!', 'success')
+    } catch (err) {
+      // Server sync failed — revert to the last known server state.
+      setMenuItems(prev)
+      addToast(err.message || 'Failed to update item', 'error')
+    } finally {
+      setSyncingIds(prev => {
+        const next = new Set(prev)
+        next.delete(itemId)
+        return next
       })
-      if (res.ok) {
-        const updated = await res.json()
-        setMenuItems(prev => prev.map(i => i.id === itemId ? updated.menu_item : i))
-        addToast(newAvailability === 'sold_out' ? 'Marked as sold out!' : 'Marked as available!', 'success')
-      } else addToast('Failed to update item', 'error')
-    } catch { addToast('Network error', 'error') }
+    }
   }
 
   const handleAssignTemplate = async (templateId) => {
     setAssigningTemplate(true)
     try {
-      const res = await fetch(`/api/screens/${screenId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ template_id: templateId || null }),
-      })
-      if (res.ok) {
-        addToast(templateId ? 'Template assigned!' : 'Template removed', 'success')
-        setSelectedTemplateId(templateId)
-      } else addToast('Failed to assign template', 'error')
-    } catch { addToast('Network error', 'error') }
+      await api.updateScreen(screenUuid || screenId, { template_id: templateId || null })
+      addToast(templateId ? 'Template assigned!' : 'Template removed', 'success')
+      setSelectedTemplateId(templateId)
+    } catch (err) {
+      addToast(err.message || 'Failed to assign template', 'error')
+    }
     setAssigningTemplate(false)
   }
   if (loading) return <SkeletonLoader />
@@ -116,8 +116,10 @@ export default function ScreenDetailPage() {
         </div>
       </div>
       <div className="flex gap-3 flex-wrap">
+        <Link to={`/dashboard/screens/${screenId}/design`}
+          className="btn-primary flex items-center gap-2">🎨 Design Screen</Link>
         <Link to={`/dashboard/screens/${screenId}/menu`}
-          className="btn-primary flex items-center gap-2">✏️ Edit Menu</Link>
+          className="btn-secondary flex items-center gap-2">✏️ Edit Menu</Link>
         {screen.unique_slug && (
           <button onClick={() => setPreviewOpen(true)}
             className="btn-secondary flex items-center gap-2">👁️ Preview TV</button>
@@ -161,6 +163,7 @@ export default function ScreenDetailPage() {
               <MenuItemCard
                 key={item.id}
                 item={item}
+                syncing={syncingIds.has(item.id)}
                 onToggleSoldOut={() => handleToggleSoldOut(item.id, item.availability)}
               />
             ))

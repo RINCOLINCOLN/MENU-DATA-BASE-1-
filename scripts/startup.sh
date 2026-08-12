@@ -1,107 +1,26 @@
-#!/bin/bash
-# Lumenu Production Startup Script
-# Kills stale processes, starts services in order, verifies readiness.
-# Usage: bash /home/team/shared/menuvo/scripts/startup.sh
-
-LOG_DIR="/tmp"
-NODE_LOG="${LOG_DIR}/lumenu-server.log"
-BUN_LOG="${LOG_DIR}/lumenu-landing.log"
-STARTUP_LOG="${LOG_DIR}/lumenu-startup.log"
-
-BUN_PORT=3002
-NODE_PORT=3000
-
-# ── Helpers ──────────────────────────────────────────────────
-
-log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$STARTUP_LOG"; }
-kill_port() {
-  local port=$1
-  local pids
-  pids=$(ss -Htlnp "sport = :$port" 2>/dev/null | grep -oP 'pid=\K[0-9]+' | sort -u)
-  for pid in $pids; do
-    sudo kill -9 "$pid" 2>/dev/null && log "  Killed PID $pid on port $port" || true
-  done
+#!/usr/bin/env bash
+# Canonical Lumenu runtime. Never run the marketing Bun server on public :3000.
+set -euo pipefail
+ROOT=/home/team/shared/menuvo
+SITE=/home/team/shared/site
+log(){ echo "[$(date '+%H:%M:%S')] $*"; }
+pid_on_port(){ lsof -t -iTCP:"$1" -sTCP:LISTEN 2>/dev/null | head -1; }
+kill_port(){ local pid; while pid=$(pid_on_port "$1"); [ -n "$pid" ]; do log "Stopping PID $pid on :$1"; kill -9 "$pid" 2>/dev/null || true; sleep .3; done; }
+ensure_builds(){
+  [ -d "$ROOT/server/node_modules" ] || (cd "$ROOT/server" && npm install --omit=dev)
+  [ -f "$SITE/dist/server/server.js" ] || (cd "$SITE" && bun install && bun run build)
+  [ -f "$ROOT/dashboard/dist/index.html" ] || (cd "$ROOT/dashboard" && npm install && npm run build)
 }
-wait_port_free() {
-  local port=$1 timeout=${2:-10}
-  local i=0
-  while ss -Htln "sport = :$port" 2>/dev/null | grep -q ":$port"; do
-    sleep 0.5
-    ((i++))
-    if [ $i -ge $((timeout * 2)) ]; then
-      log "  ⚠️  Port $port still in use after ${timeout}s — forcing..."
-      sudo fuser -k "${port}/tcp" 2>/dev/null || true
-      sleep 1
-      break
-    fi
-  done
-}
-check_http() {
-  local url=$1 label=$2 max_retries=${3:-5}
-  local code i=0
-  while [ $i -lt $max_retries ]; do
-    code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "$url" 2>/dev/null || echo "000")
-    [ "$code" = "200" ] && break
-    sleep 1
-    ((i++))
-  done
-  if [ "$code" = "200" ]; then
-    log "  ✅ $label → $code (after $i retries)"
-    return 0
-  else
-    log "  ❌ $label → $code (after $i retries)"
-    return 1
-  fi
-}
-
-# ── Main ─────────────────────────────────────────────────────
-
-echo "" > "$STARTUP_LOG"
-log "🚀 Lumenu Startup — $(date)"
-
-# 1. Stop stale processes
-log "Step 1: Killing stale processes..."
-kill_port $NODE_PORT
-kill_port $BUN_PORT
-kill_port 3001  # legacy
-wait_port_free $NODE_PORT
-wait_port_free $BUN_PORT
-log "  Ports cleared"
-
-# 2. Start Bun landing page SSR
-log "Step 2: Starting landing page SSR (Bun on :$BUN_PORT)..."
-cd /home/team/shared/site
-nohup bun run serve-landing.ts >> "$BUN_LOG" 2>&1 &
-BUN_PID=$!
-log "  Bun PID: $BUN_PID"
+check(){ local url=$1 expected=${2:-200} got; got=$(curl -sS -L -o /tmp/lumenu-check -w '%{http_code}' --max-time 10 "$url" || true); [ "$got" = "$expected" ] || { echo "FAIL $url ($got)"; return 1; }; echo "OK $url ($got)"; }
+log 'Stopping all conflicting listeners'; for p in 3000 3001 3002; do kill_port "$p"; done
+ensure_builds
+log 'Starting landing SSR on loopback :3002'; (cd "$SITE" && setsid nohup env PORT=3002 bun run serve-landing.ts >/tmp/lumenu-landing.log 2>&1 < /dev/null &)
+sleep 2; [ -n "$(pid_on_port 3002)" ] || { cat /tmp/lumenu-landing.log; exit 1; }
+log 'Starting Express/API + dashboard/TV on public :3000'; (cd "$ROOT/server" && setsid nohup env PORT=3000 node server.js >/tmp/lumenu-server.log 2>&1 < /dev/null &)
 sleep 3
-
-# 3. Start Node.js Express server
-log "Step 3: Starting backend server (Node on :$NODE_PORT)..."
-cd /home/team/shared/menuvo/server
-nohup node server.js >> "$NODE_LOG" 2>&1 &
-NODE_PID=$!
-log "  Node PID: $NODE_PID"
-sleep 3
-
-# 4. Verify readiness (with retries built into check_http)
-log "Step 4: Verifying endpoints..."
-FAILS=0
-check_http "http://localhost:3000/api/health" "API Health"   || ((FAILS++))
-check_http "http://localhost:3000/"          "Landing Page"  || ((FAILS++))
-check_http "http://localhost:3000/app/"      "Dashboard"     || ((FAILS++))
-check_http "http://localhost:3000/tv/"       "TV Display"    || ((FAILS++))
-
-# 5. Summary
-log ""
-if [ "$FAILS" -eq 0 ]; then
-  log "✅ All checks passed — Lumenu is live on :$NODE_PORT"
-else
-  log "⚠️  $FAILS check(s) failed — check logs:"
-  log "   Node: $NODE_LOG"
-  log "   Bun:  $BUN_LOG"
-fi
-log "   Node PID: $NODE_PID"
-log "   Bun PID:  $BUN_PID"
-
-exit $FAILS
+check http://127.0.0.1:3000/api/health
+check http://127.0.0.1:3000/
+check http://127.0.0.1:3000/login
+check http://127.0.0.1:3000/register
+check 'http://127.0.0.1:3000/tv/?slug=brew-main-board'
+echo 'Lumenu canonical runtime is live: :3002 landing -> :3000 Express'

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useToast } from '../contexts/ToastContext'
+import { getToken, setToken, clearToken } from '../lib/token'
 
 export default function SettingsPage() {
   const { addToast } = useToast()
@@ -13,7 +14,7 @@ export default function SettingsPage() {
     e.preventDefault()
     setSaving(true)
     try {
-      const token = localStorage.getItem('menuvo_token')
+      const token = getToken()
       const res = await fetch('/api/auth/me', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -29,7 +30,7 @@ export default function SettingsPage() {
     e.preventDefault()
     setAddingLocation(true)
     try {
-      const token = localStorage.getItem('menuvo_token')
+      const token = getToken()
       const res = await fetch('/api/restaurants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -96,7 +97,7 @@ export default function SettingsPage() {
 
       <div className="bg-brand-surface rounded-xl shadow-sm border border-brand-border/40 p-6">
         <h3 className="font-semibold text-brand-text mb-1">Account</h3>
-        <button onClick={() => { localStorage.removeItem('menuvo_token'); window.location.href = '/login' }}
+        <button onClick={() => { clearToken(); window.location.href = '/login' }}
           className="btn-danger">Sign Out</button>
       </div>
     </div>

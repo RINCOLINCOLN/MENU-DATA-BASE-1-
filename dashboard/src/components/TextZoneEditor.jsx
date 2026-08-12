@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useToast } from '../contexts/ToastContext'
+import api from '../lib/api'
 
 const DEFAULT_ZONE = {
   id: '', x: 5, y: 5, width: 90, height: 20,
@@ -56,7 +57,6 @@ export default function TextZoneEditor({ template, onClose, onSaved }) {
   const [saving, setSaving] = useState(false)
   const canvasRef = useRef(null)
   const { addToast } = useToast()
-  const token = localStorage.getItem('menuvo_token')
 
   useEffect(() => {
     if (template?.config_json) {
@@ -153,14 +153,11 @@ export default function TextZoneEditor({ template, onClose, onSaved }) {
     setSaving(true)
     try {
       const configJson = JSON.stringify({ zones })
-      const res = await fetch(`/api/templates/${template.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ config_json: configJson }),
-      })
-      if (res.ok) { addToast('Text zones saved!', 'success'); onSaved?.(); onClose() }
-      else addToast('Save failed', 'error')
-    } catch { addToast('Network error', 'error') }
+      await api.updateTemplate(template.id, { config_json: configJson })
+      addToast('Text zones saved!', 'success')
+      onSaved?.()
+      onClose()
+    } catch (err) { addToast(err.message || 'Save failed', 'error') }
     setSaving(false)
   }
 
