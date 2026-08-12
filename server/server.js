@@ -29,8 +29,6 @@ app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Public root is owned by the marketing landing process on port 3002.
-// Keep the dashboard isolated under /app so a restart cannot accidentally make
-// the login shell the public homepage.
 // Keep the dashboard isolated under /app so a restart cannot make login the homepage.
 const landingOrigin = 'http://127.0.0.1:3002';
 app.get('/', async (req, res, next) => {
@@ -42,9 +40,8 @@ app.get('/', async (req, res, next) => {
       if (key.toLowerCase() !== 'content-length') res.setHeader(key, value);
     });
     const html = await landing.text();
-    // Rewrite landing's absolute asset URLs to a distinct namespace. The
-    // dashboard also uses /assets, so sharing that path causes the browser to
-    // receive the dashboard HTML for landing CSS/JS and appear stuck loading.
+    // Keep landing assets separate from dashboard assets. Both apps build to
+    // /assets, but Express owns the dashboard path on the public origin.
     res.send(html.replaceAll('/assets/', '/site-assets/'));
   } catch {
     next();
