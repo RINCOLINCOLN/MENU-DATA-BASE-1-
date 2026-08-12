@@ -626,18 +626,23 @@ export default function ScreenDesigner() {
                 <label className="flex justify-between text-xs font-medium text-brand-muted mb-1">
                   <span>Font size</span><span className="font-mono text-brand-glow">{selectedZone.font_size || 34}px</span>
                 </label>
-                <input type="range" min="12" max="160" value={selectedZone.font_size || 34}
-                  onChange={e => updateZone(selectedZone.id, { font_size: parseInt(e.target.value, 10) })}
-                  className="w-full accent-amber-400" />
+                {/* Typed input + scrubbing slider (floor 6px suits 1920×1080 captions) */}
+                <div className="flex items-center gap-2">
+                  <NumberField className="input-field text-xs w-20 shrink-0" value={selectedZone.font_size || 34} min={6} max={160}
+                    onCommit={v => updateZone(selectedZone.id, { font_size: v })} />
+                  <input type="range" min="6" max="160" value={selectedZone.font_size || 34}
+                    onChange={e => updateZone(selectedZone.id, { font_size: parseInt(e.target.value, 10) })}
+                    className="flex-1 accent-amber-400" />
+                </div>
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   <div>
                     <label className="block text-[10px] text-brand-muted mb-0.5">Min (auto-shrink)</label>
-                    <NumberField className={numInput} value={selectedZone.min_font_size || 14} min={8} max={120}
+                    <NumberField className={numInput} value={selectedZone.min_font_size || 14} min={4} max={120}
                       onCommit={v => updateZone(selectedZone.id, { min_font_size: v })} />
                   </div>
                   <div>
                     <label className="block text-[10px] text-brand-muted mb-0.5">Max (auto-shrink)</label>
-                    <NumberField className={numInput} value={selectedZone.max_font_size || 72} min={8} max={200}
+                    <NumberField className={numInput} value={selectedZone.max_font_size || 72} min={4} max={200}
                       onCommit={v => updateZone(selectedZone.id, { max_font_size: v })} />
                   </div>
                 </div>
