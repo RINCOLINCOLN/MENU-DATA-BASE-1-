@@ -35,6 +35,8 @@
     videoLoaded: false,
     textZones: [],             // Current rendered text zones
     templateConfig: null,      // Parsed template config with text_zone rules
+    renderMode: null,          // 'layout' | 'legacy' | null (what the renderer drew)
+    bgType: 'video',           // Background type from layout ('video'|'image'|'color'|'none')
     initResolve: null,
     initPromise: null,
   };
@@ -56,6 +58,7 @@
     els.app = document.getElementById('app');
     els.video = document.getElementById('menu-video');
     els.overlay = document.getElementById('overlay-layer');
+    els.background = document.getElementById('layout-background');
     els.failsafe = document.getElementById('failsafe-layer');
     els.loading = document.getElementById('loading-screen');
     els.connectivity = document.getElementById('connectivity-indicator');
@@ -66,6 +69,7 @@
     els.debugMode = document.getElementById('debug-mode');
     els.debugOnline = document.getElementById('debug-online');
     els.debugData = document.getElementById('debug-data');
+    els.debugRender = document.getElementById('debug-render');
 
     state.videoElement = els.video;
 
@@ -79,6 +83,16 @@
     loadInitialData().then(() => {
       state.initResolve(true);
     });
+
+    // Optional demo override: ?demo=layout|legacy renders sample content
+    // (useful for the dashboard preview link and manual testing)
+    const demoMode = new URLSearchParams(location.search).get('demo');
+    if (demoMode === 'layout' || demoMode === 'legacy') {
+      setTimeout(() => {
+        if (demoMode === 'layout') window.__simulateLayout();
+        else window.__simulateLegacy();
+      }, 400);
+    }
 
     // Hide loading screen after timeout in case data never resolves
     setTimeout(() => {
@@ -153,10 +167,12 @@
     window.addEventListener('offline', () => {
       console.log('[Conn] Offline');
       state.online = false;
-      // Start degrade timer — wait 30s before switching to degraded mode
+      // Start degrade timer — wait 30s before switching to degraded mode.
+      // Fire from any non-degraded state that has data (normal OR loading),
+      // so screens whose video asset is missing still show the owner dot.
       clearTimeout(state.modeTimer);
       state.modeTimer = setTimeout(() => {
-        if (!state.online && state.mode === 'normal') {
+        if (!state.online && state.mode !== 'degraded' && state.mode !== 'failsafe') {
           enterDegradedMode();
         }
       }, DEGRADE_AFTER_MS);
@@ -261,8 +277,8 @@
       loadVideo(videoUrl);
     }
 
-    // Render text overlays
-    renderTextOverlays(data);
+    // Render overlays — per-screen canvas layout if present, else legacy zones
+    state.renderMode = renderOverlays(data);
 
     // Set mode to normal if we have video and data
     if (state.videoLoaded || fromCache) {
@@ -273,17 +289,47 @@
     updateDebugBar();
   }
 
+  // ── Layout / Overlay Rendering ─────────────────────────────────────
+  function renderOverlays(data) {
+    if (!data || !els.overlay || !window.LumenuLayout) return null;
+    state.bgType = detectBgType(data);
+    return window.LumenuLayout.render(data, {
+      overlay: els.overlay,
+      backgroundEl: els.background,
+      video: els.video,
+    });
+  }
+
+  function detectBgType(data) {
+    if (!data || !window.LumenuLayout) return 'video';
+    const layout = window.LumenuLayout.extractLayout(data);
+    if (layout && layout.background && layout.background.type) {
+      return layout.background.type;
+    }
+    return 'video';
+  }
+
+  /** Show/hide the <video> based on the active layout background type. */
+  function applyBgDisplay() {
+    if (!els.video) return;
+    if (state.bgType === 'image' || state.bgType === 'color' || state.bgType === 'none') {
+      els.video.style.display = 'none';
+    } else {
+      els.video.style.display = '';
+    }
+  }
+
   // ── Mode Management ─────────────────────────────────────────────────
   function enterNormalMode(fromCache) {
     if (state.mode === 'normal') return;
     console.log('[Mode] → Normal' + (fromCache ? ' (from cache)' : ''));
     state.mode = 'normal';
     els.failsafe.classList.add('hidden');
-    els.video.style.display = '';
+    applyBgDisplay();
     els.overlay.style.display = '';
     els.modeIndicator.className = 'online';
 
-    if (state.videoElement && state.videoSrc) {
+    if (state.videoElement && state.videoSrc && state.bgType !== 'image' && state.bgType !== 'color') {
       state.videoElement.play().catch(() => {});
     }
   }
@@ -303,7 +349,7 @@
     console.log('[Mode] → Failsafe (never synced / no data)');
     state.mode = 'failsafe';
     els.failsafe.classList.remove('hidden');
-    els.video.style.display = 'none';
+    applyBgDisplay();
     els.overlay.style.display = 'none';
     els.modeIndicator.className = 'failsafe';
     hideLoading();
@@ -402,142 +448,10 @@
   }
 
   // ── Text Overlay Rendering ──────────────────────────────────────────
-  function renderTextOverlays(data) {
-    if (!data || !data.template || !data.template.text_zones) {
-      els.overlay.innerHTML = '';
-      return;
-    }
-
-    const zones = data.template.text_zones;
-    const items = data.items || [];
-    const container = els.overlay;
-
-    // Clear existing zones
-    container.innerHTML = '';
-
-    zones.forEach((zone) => {
-      const zoneEl = document.createElement('div');
-      zoneEl.className = `text-zone align-${zone.alignment || 'left'}`;
-      zoneEl.style.left = (zone.x || 0) + '%';
-      zoneEl.style.top = (zone.y || 0) + '%';
-
-      // Width and height
-      if (zone.width && zone.width !== 'auto') {
-        zoneEl.style.width = (typeof zone.width === 'number' ? zone.width + '%' : zone.width);
-      }
-      if (zone.height && zone.height !== 'auto') {
-        zoneEl.style.height = (typeof zone.height === 'number' ? zone.height + '%' : zone.height);
-      }
-
-      // Font family
-      if (zone.font_family) {
-        zoneEl.style.fontFamily = zone.font_family;
-      }
-
-      // Font size from config with min/max range
-      const baseFontSize = zone.font_size || 48;
-      const minSize = zone.min_font_size || 24;
-      const maxSize = zone.max_font_size || 72;
-
-      zoneEl.style.fontSize = baseFontSize + 'px';
-      zoneEl.style.color = zone.color || '#ffffff';
-      zoneEl.style.fontWeight = zone.font_weight || 'normal';
-
-      // Letter spacing
-      if (zone.letter_spacing && zone.letter_spacing !== 'normal') {
-        zoneEl.style.letterSpacing = zone.letter_spacing;
-      }
-
-      // Text transform
-      if (zone.text_transform && zone.text_transform !== 'none') {
-        zoneEl.style.textTransform = zone.text_transform;
-      }
-
-      // Line height
-      if (zone.line_height) {
-        zoneEl.style.lineHeight = zone.line_height;
-      }
-
-      // Background color
-      if (zone.background_color && zone.background_color !== 'transparent') {
-        zoneEl.style.backgroundColor = zone.background_color;
-        zoneEl.style.padding = zone.padding || '4px 8px';
-        zoneEl.classList.add('has-background');
-        if (zone.border_radius) {
-          zoneEl.style.borderRadius = zone.border_radius;
-        }
-      }
-
-      // Opacity
-      if (zone.opacity !== undefined && zone.opacity < 1) {
-        zoneEl.style.opacity = zone.opacity;
-      }
-
-      // Padding (only if no background or already handled)
-      if ((!zone.background_color || zone.background_color === 'transparent') && zone.padding && zone.padding !== '0') {
-        zoneEl.style.padding = zone.padding;
-      }
-
-      // Map items to this zone
-      const zoneItems = zone.item_ids && zone.item_ids.length > 0
-        ? items.filter((item) => zone.item_ids.includes(item.id))
-        : items;
-
-      zoneItems.forEach((item, idx) => {
-        if (idx > 0) {
-          zoneEl.appendChild(document.createElement('br'));
-        }
-
-        // Item name span
-        const nameSpan = document.createElement('span');
-        nameSpan.className = 'item-name';
-        nameSpan.textContent = item.name || '';
-        zoneEl.appendChild(nameSpan);
-
-        // Price span (if not sold out, show price)
-        if (item.availability !== 'sold_out' && item.price) {
-          const priceSpan = document.createElement('span');
-          priceSpan.className = 'item-price';
-          priceSpan.textContent = formatPrice(item.price);
-          zoneEl.appendChild(priceSpan);
-        }
-
-        // Sold out badge
-        if (item.availability === 'sold_out') {
-          const badge = document.createElement('span');
-          badge.className = 'sold-out-badge';
-          badge.textContent = 'SOLD OUT';
-          zoneEl.appendChild(badge);
-          zoneEl.classList.add('sold-out');
-        }
-      });
-
-      // Auto-shrink if content overflows
-      container.appendChild(zoneEl);
-      autoShrink(zoneEl, minSize, maxSize);
-    });
-  }
-
-  function autoShrink(element, minSize, maxSize) {
-    // We need to measure if the element overflows its container
-    // Since the element is position: absolute, we check width against max-width
-    const parentWidth = els.app ? els.app.offsetWidth : 1920;
-    const maxWidth = parentWidth * 0.9; // 90% of screen width
-    let fontSize = parseInt(window.getComputedStyle(element).fontSize, 10) || maxSize;
-
-    // Temporarily set white-space: nowrap to measure natural width
-    const originalWhiteSpace = element.style.whiteSpace;
-    element.style.whiteSpace = 'nowrap';
-
-    // Shrink until fits
-    while (element.scrollWidth > maxWidth && fontSize > minSize) {
-      fontSize -= 2;
-      element.style.fontSize = fontSize + 'px';
-    }
-
-    element.style.whiteSpace = originalWhiteSpace;
-  }
-
+  // Overlay rendering now lives in layout-model.js (window.LumenuLayout).
+  // It renders the per-screen canvas layout when present, and falls back
+  // to the legacy text-zone model (template.text_zones / config_json)
+  // otherwise. Kept here for back-compat with older test pages:
   function formatPrice(price) {
     if (typeof price === 'number') {
       return '$' + price.toFixed(2);
@@ -670,6 +584,9 @@
       ? state.screenData.items.length
       : 0;
     els.debugData.textContent = dataCount + ' items';
+    if (els.debugRender) {
+      els.debugRender.textContent = state.renderMode || '—';
+    }
   }
 
   // ── Window Resize Handler (scale display) ──────────────────────────
@@ -713,7 +630,7 @@
       state.online = false;
       clearTimeout(state.modeTimer);
       state.modeTimer = setTimeout(() => {
-        if (!state.online && state.mode === 'normal') {
+        if (!state.online && state.mode !== 'degraded' && state.mode !== 'failsafe') {
           enterDegradedMode();
         }
       }, 2000); // Shortened for testing
@@ -726,7 +643,11 @@
   };
 
   window.__simulateData = function () {
-    // Push test data for development
+    // Back-compat: load legacy text-zone test data (kept for old test pages)
+    window.__simulateLegacy();
+  };
+
+  window.__simulateLegacy = function () {
     const testData = {
       mode: 'normal',
       slug: state.slug,
@@ -737,18 +658,76 @@
           { id: 'tz-2', x: 5, y: 75, alignment: 'left', font_size: 36, color: '#f6ad55', item_ids: [] },
         ],
       },
-      items: [
-        { id: 'item-1', name: 'Classic Burger', price: 14.99, availability: 'available' },
-        { id: 'item-2', name: 'Truffle Fries', price: 8.99, availability: 'available' },
-        { id: 'item-3', name: 'Margherita Pizza', price: 16.99, availability: 'sold_out' },
-        { id: 'item-4', name: 'Caesar Salad', price: 11.99, availability: 'available' },
-        { id: 'item-5', name: 'Grilled Salmon', price: 22.99, availability: 'available' },
-        { id: 'item-6', name: 'Chocolate Lava Cake', price: 9.99, availability: 'available' },
-      ],
+      items: makeTestItems(),
       last_updated: new Date().toISOString(),
     };
     applyScreenData(testData, false);
   };
+
+  window.__simulateLayout = function () {
+    const testData = {
+      mode: 'normal',
+      slug: state.slug,
+      template: { video_url: state.videoSrc || '' },
+      layout: {
+        version: 1,
+        coords: 'percent',
+        width: 1920,
+        height: 1080,
+        background: {
+          type: 'image',
+          src: 'assets/fallback.svg',
+          fit: 'cover',
+          overlay_color: 'rgba(10, 10, 26, 0.55)',
+        },
+        elements: [
+          {
+            id: 'header', type: 'text', x: 8, y: 5, width: 84, height: 14,
+            z_index: 2, align: 'center', font_family: 'Georgia, serif',
+            font_size: 58, font_size_min: 28, font_size_max: 68,
+            color: '#f6ad55', letter_spacing: '0.08em',
+            text_transform: 'uppercase', text: 'Brew & Bean Café',
+          },
+          {
+            id: 'menu-left', type: 'menu_items', x: 8, y: 26, width: 40, height: 58,
+            z_index: 1, align: 'left', font_size: 34, font_size_min: 16, font_size_max: 42,
+            color: '#ffffff', background_color: 'rgba(0,0,0,0.35)',
+            padding: '16px 20px', border_radius: '10px', item_ids: ['item-1', 'item-3', 'item-4'],
+          },
+          {
+            id: 'menu-right', type: 'menu_items', x: 52, y: 26, width: 40, height: 58,
+            z_index: 1, align: 'left', font_size: 30, font_size_min: 16, font_size_max: 40,
+            color: '#fefcbf', background_color: 'rgba(0,0,0,0.35)',
+            padding: '16px 20px', border_radius: '10px', category: 'Specials',
+          },
+          {
+            id: 'footer', type: 'text', x: 8, y: 88, width: 84, height: 8,
+            z_index: 2, align: 'center', font_size: 24, font_size_min: 14, font_size_max: 30,
+            color: '#a0aec0', text: 'Open Daily 7am – 9pm  ·  Fresh Roasted Coffee',
+          },
+          {
+            id: 'accent', type: 'shape', x: 8, y: 20, width: 84, height: 4,
+            z_index: 1, shape: 'rectangle', fill: 'rgba(246, 173, 85, 0.7)',
+            border_radius: '2px',
+          },
+        ],
+      },
+      items: makeTestItems(),
+      last_updated: new Date().toISOString(),
+    };
+    applyScreenData(testData, false);
+  };
+
+  function makeTestItems() {
+    return [
+      { id: 'item-1', name: 'Classic Burger', price: 14.99, availability: 'available', category: 'Lunch' },
+      { id: 'item-2', name: 'Truffle Fries', price: 8.99, availability: 'available', category: 'Lunch' },
+      { id: 'item-3', name: 'Margherita Pizza', price: 16.99, availability: 'sold_out', category: 'Lunch' },
+      { id: 'item-4', name: 'Caesar Salad', price: 11.99, availability: 'available', category: 'Lunch' },
+      { id: 'item-5', name: 'Grilled Salmon', price: 22.99, availability: 'available', category: 'Specials' },
+      { id: 'item-6', name: 'Chocolate Lava Cake', price: 9.99, availability: 'available', category: 'Specials' },
+    ];
+  }
 
   // ── Start ───────────────────────────────────────────────────────────
   if (document.readyState === 'loading') {

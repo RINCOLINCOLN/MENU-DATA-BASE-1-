@@ -63,13 +63,18 @@ router.post('/', authMiddleware, upload.single('video'), (req, res) => {
   const id = uuidv4();
   const videoUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
-  // Validate config_json if provided
+  // Validate config_json if provided, then normalize to a JSON string
+  // (accepts a JSON string, an array of zones, or { zones: [...] }).
   let configParsed = config_json;
-  if (configParsed && typeof configParsed === 'string') {
-    try {
-      JSON.parse(configParsed);
-    } catch {
-      return res.status(400).json({ error: 'config_json must be valid JSON' });
+  if (configParsed !== undefined && configParsed !== null) {
+    if (typeof configParsed === 'string') {
+      try {
+        JSON.parse(configParsed);
+      } catch {
+        return res.status(400).json({ error: 'config_json must be valid JSON' });
+      }
+    } else {
+      configParsed = JSON.stringify(configParsed);
     }
   }
 

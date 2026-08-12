@@ -41,7 +41,7 @@ html, body {
   object-fit: cover;
 }
 
-/* ── Text Overlays ──────────────────────────────────────────────────── */
+/* ── Layout Background Layer ────────────────────────────────────────── */
 
 #overlay-layer {
   position: absolute;
@@ -53,6 +53,123 @@ html, body {
   z-index: 10;
 }
 
+#layout-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  background-color: #000;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+#layout-background.hidden {
+  display: none;
+}
+
+.layout-bg-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Layout Elements (per-screen canvas model) ──────────────────────── */
+
+.layout-element {
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+  box-sizing: border-box;
+  text-shadow:
+    0 1px 3px rgba(0,0,0,0.8),
+    0 0 8px rgba(0,0,0,0.5);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.layout-element.lx-shape {
+  text-shadow: none;
+}
+
+.layout-element.has-background {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* Menu list element */
+
+.menu-list {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 0.35em;
+}
+
+.menu-row {
+  display: flex;
+  align-items: baseline;
+  width: 100%;
+  white-space: nowrap;
+}
+
+.menu-row.sold-out-row {
+  opacity: 0.55;
+}
+
+.menu-row-name {
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-row-price {
+  display: inline-block;
+  margin-left: 0.4em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.menu-row-desc {
+  font-size: 0.72em;
+  opacity: 0.75;
+  margin-top: 0.1em;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+.menu-center .menu-row {
+  justify-content: center;
+}
+
+.menu-list .sold-out-badge {
+  display: inline-block;
+  background: #e53e3e;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.55em;
+  padding: 0.2em 0.5em;
+  border-radius: 0.3em;
+  margin-left: 0.5em;
+  vertical-align: middle;
+  text-shadow: none;
+  line-height: 1.3;
+}
+
+/* Image element */
+
+.layout-element.lx-image {
+  background-color: transparent;
+}
+
+/* ── Legacy text-zone styles (kept for back-compat with older pages) ── */
+
 .text-zone {
   position: absolute;
   overflow: visible;
@@ -62,7 +179,6 @@ html, body {
     0 1px 3px rgba(0,0,0,0.8),
     0 0 8px rgba(0,0,0,0.5);
   white-space: nowrap;
-  /* Font rendering optimizations for TV displays */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;

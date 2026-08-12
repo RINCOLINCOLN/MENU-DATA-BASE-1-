@@ -4,6 +4,24 @@ import { getDb } from '../db/database.js';
 const router = Router();
 
 /**
+ * Normalize a template's config_json into a flat array of text zones.
+ * Tolerates every historical shape: a bare array (seed), { zones: [] },
+ * or { text_zones: [] }. The TV PWA reads `template.text_zones`; the
+ * dashboard screen designer writes the bare-array form.
+ */
+function normalizeTextZones(configJson) {
+  if (!configJson) return [];
+  let parsed = configJson;
+  if (typeof parsed === 'string') {
+    try { parsed = JSON.parse(parsed); } catch { return []; }
+  }
+  if (Array.isArray(parsed)) return parsed;
+  if (parsed && Array.isArray(parsed.text_zones)) return parsed.text_zones;
+  if (parsed && Array.isArray(parsed.zones)) return parsed.zones;
+  return [];
+}
+
+/**
  * GET /api/screens/:slug/data
  * Public endpoint — returns ALL data the TV display PWA needs in one response.
  * This is the primary data endpoint for the offline-first PWA.
@@ -45,9 +63,16 @@ router.get('/:slug/data', (req, res) => {
         video_url: template.video_url,
         video_duration_ms: template.video_duration_ms,
         orientation: template.orientation,
+        // The TV PWA reads `text_zones`; keep `config_json` for back-compat.
+        text_zones: normalizeTextZones(template.config_json),
         config_json: template.config_json ? JSON.parse(template.config_json) : null
       } : null,
       menu_items: menuItems.map(item => ({
+        ...item,
+        config_json: undefined // menu_items don't have config_json, but just in case
+      })),
+      // Alias the TV PWA reads (`data.items`).
+      items: menuItems.map(item => ({
         ...item,
         config_json: undefined // menu_items don't have config_json, but just in case
       })),
