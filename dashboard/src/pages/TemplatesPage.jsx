@@ -4,7 +4,7 @@ import { useToast } from '../contexts/ToastContext'
 import SkeletonLoader from '../components/SkeletonLoader'
 import TextZoneEditor from '../components/TextZoneEditor'
 import TemplatePreview from '../components/TemplatePreview'
-import { getToken, setToken, clearToken } from '../lib/token'
+import api from '../lib/api'
 
 /** Count configured text zones, tolerating string / array / {zones: []} configs. */
 function zoneCount(configJson) {
@@ -28,16 +28,10 @@ export default function TemplatesPage() {
   const { addToast } = useToast()
   const navigate = useNavigate()
 
-  const token = getToken()
-  const headers = { Authorization: `Bearer ${token}` }
-
   const fetchTemplates = async () => {
     try {
-      const res = await fetch('/api/templates', { headers })
-      if (res.ok) {
-        const data = await res.json()
-        setTemplates(data.templates || [])
-      }
+      const data = await api.getTemplates()
+      setTemplates(data.templates || [])
     } catch {}
     setLoading(false)
   }
@@ -47,12 +41,10 @@ export default function TemplatesPage() {
   const handleDelete = async (templateId) => {
     if (!confirm('Delete this template? Screens using it will be unassigned.')) return
     try {
-      const res = await fetch(`/api/templates/${templateId}`, { method: 'DELETE', headers })
-      if (res.ok) {
-        addToast('Template deleted', 'success')
-        fetchTemplates()
-      } else addToast('Delete failed', 'error')
-    } catch { addToast('Network error', 'error') }
+      await api.deleteTemplate(templateId)
+      addToast('Template deleted', 'success')
+      fetchTemplates()
+    } catch (err) { addToast(err.message || 'Delete failed', 'error') }
   }
 
   if (loading) return <SkeletonLoader />
@@ -152,27 +144,18 @@ function UploadModal({ onClose, onSuccess }) {
     }
     setUploading(true)
     try {
-      const formData = new FormData()
-      formData.append('name', name.trim())
-      formData.append('orientation', orientation)
-      formData.append('video', videoFile)
-      if (configJson.trim()) formData.append('config_json', configJson)
-
-      const token = getToken()
-      const res = await fetch('/api/templates', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
+      await api.uploadTemplate({
+        name: name.trim(),
+        orientation,
+        video: videoFile,
+        config_json: configJson.trim() || undefined,
       })
-      if (res.ok) {
-        addToast('Template uploaded!', 'success')
-        onSuccess()
-        onClose()
-      } else {
-        const data = await res.json()
-        addToast(data.error || 'Upload failed', 'error')
-      }
-    } catch { addToast('Network error', 'error') }
+      addToast('Template uploaded!', 'success')
+      onSuccess()
+      onClose()
+    } catch (err) {
+      addToast(err.message || 'Upload failed', 'error')
+    }
     setUploading(false)
   }
 
@@ -274,26 +257,19 @@ function AssignModal({ template, onClose }) {
   const [assigning, setAssigning] = useState(false)
   const { addToast } = useToast()
 
-  const token = getToken()
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-
   useEffect(() => {
     const fetchScreens = async () => {
       try {
-        const res = await fetch('/api/restaurants', { headers: { Authorization: `Bearer ${token}` } })
-        if (res.ok) {
-          const data = await res.json()
-          const restaurants = data.restaurants || []
-          const allScreens = []
-          for (const r of restaurants) {
-            const sr = await fetch(`/api/restaurants/${r.id}/screens`, { headers: { Authorization: `Bearer ${token}` } })
-            if (sr.ok) {
-              const sd = await sr.json()
-              ;(sd.screens || []).forEach(s => allScreens.push({ ...s, restaurantName: r.name }))
-            }
-          }
-          setScreens(allScreens)
+        const data = await api.getRestaurants()
+        const restaurants = data.restaurants || []
+        const allScreens = []
+        for (const r of restaurants) {
+          try {
+            const sr = await api.getScreens(r.id)
+            ;(sr.screens || []).forEach(s => allScreens.push({ ...s, restaurantName: r.name }))
+          } catch {}
         }
+        setScreens(allScreens)
       } catch {}
       setLoading(false)
     }
@@ -304,16 +280,10 @@ function AssignModal({ template, onClose }) {
     if (!selectedScreenId) { addToast('Select a screen', 'error'); return }
     setAssigning(true)
     try {
-      const res = await fetch(`/api/screens/${selectedScreenId}`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({ template_id: template.id }),
-      })
-      if (res.ok) {
-        addToast(`Assigned "${template.name}" to screen!`, 'success')
-        onClose()
-      } else addToast('Assign failed', 'error')
-    } catch { addToast('Network error', 'error') }
+      await api.updateScreen(selectedScreenId, { template_id: template.id })
+      addToast(`Assigned "${template.name}" to screen!`, 'success')
+      onClose()
+    } catch (err) { addToast(err.message || 'Assign failed', 'error') }
     setAssigning(false)
   }
 

@@ -94,6 +94,28 @@ export const api = {
   createTemplate: (data) => request('POST', '/templates', data),
   updateTemplate: (id, data) => request('PATCH', `/templates/${id}`, data),
   deleteTemplate: (id) => request('DELETE', `/templates/${id}`),
+  // Template upload with a video file — multipart/form-data (multer path).
+  async uploadTemplate({ name, orientation = 'landscape', video, config_json }) {
+    const formData = new FormData()
+    formData.append('name', name)
+    formData.append('orientation', orientation)
+    if (video) formData.append('video', video)
+    if (config_json) formData.append('config_json', config_json)
+    const headers = {}
+    const token = getToken()
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    let res
+    try {
+      res = await fetch(`${API_BASE}/templates`, { method: 'POST', headers, body: formData })
+    } catch (err) {
+      throw new Error('Cannot reach the Lumenu service. Check your connection and try again.')
+    }
+    const data = await parseResponse(res)
+    if (!res.ok) {
+      throw new Error(data?.error || data?.message || `Request failed: ${res.status}`)
+    }
+    return data
+  },
   // Screen Data (for preview — uses slug public endpoint)
   getScreenData: (slug) => request('GET', `/screens/${slug}/data`),
 }
