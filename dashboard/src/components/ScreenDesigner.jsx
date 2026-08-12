@@ -54,6 +54,66 @@ const SAMPLE_HEADERS = {
 
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n))
 
+/* ─────────────────────────────────────────────────────────────
+   NumberField — draft-state controlled numeric input.
+   Fixes "can't type into the designer" on tablet/desktop:
+   - While focused, the field holds exactly what the user types
+     (including empty), so clearing and replacing values works.
+   - Commits (clamped) on blur or Enter; Escape reverts; dragging
+     zones on the canvas syncs the field when it is not focused.
+   ───────────────────────────────────────────────────────────── */
+function NumberField({ value, onCommit, min, max, className, step = 1 }) {
+  const [draft, setDraft] = useState(String(value))
+  const [focused, setFocused] = useState(false)
+  const skipCommit = useRef(false)
+
+  // External changes (drag, undo, load) push into the field when idle
+  useEffect(() => {
+    if (!focused) setDraft(String(value))
+  }, [value, focused])
+
+  const commit = () => {
+    const raw = parseFloat(draft)
+    let v = Number.isNaN(raw) ? (min ?? 0) : raw
+    if (typeof min === 'number') v = Math.max(min, v)
+    if (typeof max === 'number') v = Math.min(max, v)
+    const next = Number.isNaN(raw) ? v : Math.round(v * 100) / 100
+    setDraft(String(next))
+    if (next !== value) onCommit(next)
+  }
+
+  const handleBlur = () => {
+    if (skipCommit.current) { skipCommit.current = false; return }
+    setFocused(false)
+    commit()
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() }
+    else if (e.key === 'Escape') {
+      e.preventDefault()
+      skipCommit.current = true
+      setFocused(false)
+      setDraft(String(value))
+      e.currentTarget.blur()
+    }
+  }
+
+  return (
+    <input
+      type="number"
+      inputMode="decimal"
+      step={step}
+      className={className}
+      value={draft}
+      onFocus={e => { setFocused(true); e.target.select() }}
+      onChange={e => setDraft(e.target.value)}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+    />
+  )
+}
+
 function defaultZone(type, index, orientation) {
   const isPortrait = orientation === 'portrait'
   return {
@@ -278,13 +338,26 @@ export default function ScreenDesigner() {
     if (!rect) return
     try { e.currentTarget.setPointerCapture?.(e.pointerId) } catch { /* noop */ }
     setSelectedId(id)
-    setGesture({ mode, id, startX: e.clientX, startY: e.clientY, rect })
+    // Snapshot the zone at gesture start so resize can scale typography
+    // proportionally with the box without drift or clobbering saved values.
+    const zone = zones.find(z => z.id === id)
+    setGesture({
+      mode, id, startX: e.clientX, startY: e.clientY, rect,
+      startWidth: zone?.width || 80,
+      startHeight: zone?.height || 15,
+      startFontSize: zone?.font_size || 34,
+      startMinFont: zone?.min_font_size || 14,
+      startMaxFont: zone?.max_font_size || 64,
+    })
   }
 
   useEffect(() => {
     if (!gesture) return
     const onMove = (e) => {
-      const { mode, id, startX, startY, rect } = gesture
+      const {
+        mode, id, startX, startY, rect,
+        startWidth, startHeight, startFontSize, startMinFont, startMaxFont,
+      } = gesture
       const dx = ((e.clientX - startX) / rect.width) * 100
       const dy = ((e.clientY - startY) / rect.height) * 100
       if (mode === 'move') {
@@ -297,11 +370,18 @@ export default function ScreenDesigner() {
       } else if (mode === 'resize') {
         setZones(prev => prev.map(z => {
           if (z.id !== id) return z
-          return {
-            ...z,
-            width: clamp((z.width || 80) + dx, 6, 100 - (z.x || 0)),
-            height: clamp((z.height || 15) + dy, 3, 100 - (z.y || 0)),
-          }
+          const newWidth = clamp((z.width || 80) + dx, 6, 100 - (z.x || 0))
+          const newHeight = clamp((z.height || 15) + dy, 3, 100 - (z.y || 0))
+          // Scale typography with the box: geometric mean of the linear
+          // width/height ratios, bounded by the zone's explicit min/max
+          // auto-shrink controls (both preserved from gesture start).
+          const scale = Math.sqrt(
+            (newWidth / (startWidth || 80)) * (newHeight / (startHeight || 15))
+          )
+          const lower = Math.min(startMinFont, startMaxFont)
+          const upper = Math.max(startMinFont, startMaxFont)
+          const newFont = clamp(Math.round((startFontSize || 34) * scale), lower, upper)
+          return { ...z, width: newWidth, height: newHeight, font_size: newFont }
         }))
       }
       setGesture(g => (g ? { ...g, startX: e.clientX, startY: e.clientY } : g))
@@ -511,25 +591,23 @@ export default function ScreenDesigner() {
                   onChange={e => updateZone(selectedZone.id, { label: e.target.value })} />
               </div>
 
-              {/* Position & size — precise */}
+              {/* Position & size — precise (NumberField: type, clear & replace) */}
               <div className="grid grid-cols-4 gap-2">
                 {[
-                  { key: 'x', label: 'X %' },
-                  { key: 'y', label: 'Y %' },
-                  { key: 'width', label: 'W %' },
-                  { key: 'height', label: 'H %' },
+                  { key: 'x', label: 'X %', min: 0, max: 100 - (selectedZone.width || 0) },
+                  { key: 'y', label: 'Y %', min: 0, max: 100 - (selectedZone.height || 0) },
+                  { key: 'width', label: 'W %', min: 6, max: 100 - (selectedZone.x || 0) },
+                  { key: 'height', label: 'H %', min: 3, max: 100 - (selectedZone.y || 0) },
                 ].map(f => (
                   <div key={f.key}>
                     <label className="block text-[10px] font-medium text-brand-muted mb-1">{f.label}</label>
-                    <input type="number" className={numInput} value={Math.round(selectedZone[f.key] ?? 0)}
-                      onChange={e => {
-                        const raw = parseInt(e.target.value, 10)
-                        const v = Number.isNaN(raw) ? 0 : raw
-                        if (f.key === 'x') updateZone(selectedZone.id, { x: clamp(v, 0, 100 - (selectedZone.width || 0)) })
-                        else if (f.key === 'y') updateZone(selectedZone.id, { y: clamp(v, 0, 100 - (selectedZone.height || 0)) })
-                        else if (f.key === 'width') updateZone(selectedZone.id, { width: clamp(v, 6, 100 - (selectedZone.x || 0)) })
-                        else updateZone(selectedZone.id, { height: clamp(v, 3, 100 - (selectedZone.y || 0)) })
-                      }} />
+                    <NumberField
+                      className={numInput}
+                      value={selectedZone[f.key] ?? 0}
+                      min={f.min}
+                      max={f.max}
+                      onCommit={v => updateZone(selectedZone.id, { [f.key]: v })}
+                    />
                   </div>
                 ))}
               </div>
@@ -554,13 +632,13 @@ export default function ScreenDesigner() {
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   <div>
                     <label className="block text-[10px] text-brand-muted mb-0.5">Min (auto-shrink)</label>
-                    <input type="number" className={numInput} value={selectedZone.min_font_size || 14}
-                      onChange={e => updateZone(selectedZone.id, { min_font_size: clamp(parseInt(e.target.value, 10) || 14, 8, 120) })} />
+                    <NumberField className={numInput} value={selectedZone.min_font_size || 14} min={8} max={120}
+                      onCommit={v => updateZone(selectedZone.id, { min_font_size: v })} />
                   </div>
                   <div>
                     <label className="block text-[10px] text-brand-muted mb-0.5">Max (auto-shrink)</label>
-                    <input type="number" className={numInput} value={selectedZone.max_font_size || 72}
-                      onChange={e => updateZone(selectedZone.id, { max_font_size: clamp(parseInt(e.target.value, 10) || 72, 8, 200) })} />
+                    <NumberField className={numInput} value={selectedZone.max_font_size || 72} min={8} max={200}
+                      onCommit={v => updateZone(selectedZone.id, { max_font_size: v })} />
                   </div>
                 </div>
               </div>
