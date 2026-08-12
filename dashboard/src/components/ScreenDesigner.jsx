@@ -344,7 +344,6 @@ export default function ScreenDesigner() {
     setGesture({
       mode, id, startX: e.clientX, startY: e.clientY, rect,
       startWidth: zone?.width || 80,
-      startHeight: zone?.height || 15,
       startFontSize: zone?.font_size || 34,
       startMinFont: zone?.min_font_size || 14,
       startMaxFont: zone?.max_font_size || 64,
@@ -372,15 +371,17 @@ export default function ScreenDesigner() {
           if (z.id !== id) return z
           const newWidth = clamp((z.width || 80) + dx, 6, 100 - (z.x || 0))
           const newHeight = clamp((z.height || 15) + dy, 3, 100 - (z.y || 0))
-          // Scale typography with the box: geometric mean of the linear
-          // width/height ratios, bounded by the zone's explicit min/max
-          // auto-shrink controls (both preserved from gesture start).
-          const scale = Math.sqrt(
-            (newWidth / (startWidth || 80)) * (newHeight / (startHeight || 15))
-          )
+          // Predictable typography: font scales LINEARLY with the zone's
+          // width (drag twice as wide → text twice as big, 1:1 with the
+          // horizontal drag). Height only decides how many lines fit, it
+          // never changes type size. Bounded by the zone's explicit
+          // min/max auto-shrink controls (both preserved from gesture start).
           const lower = Math.min(startMinFont, startMaxFont)
           const upper = Math.max(startMinFont, startMaxFont)
-          const newFont = clamp(Math.round((startFontSize || 34) * scale), lower, upper)
+          const newFont = clamp(
+            Math.round((startFontSize || 34) * (newWidth / (startWidth || 80))),
+            lower, upper
+          )
           return { ...z, width: newWidth, height: newHeight, font_size: newFont }
         }))
       }
