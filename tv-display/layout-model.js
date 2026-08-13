@@ -374,10 +374,12 @@
     if (el.text_transform && el.text_transform !== 'none') div.style.textTransform = el.text_transform;
     if (el.line_height) div.style.lineHeight = el.line_height;
 
-    var base = el.font_size || el.font_size_max || 48;
-    var min = el.font_size_min || 20;
-    var max = el.font_size_max || 72;
-    base = clamp(base, min, max);
+    // font_size is the author's explicit design-space size (px at
+    // 1920×1080) — honor it exactly. min/max bound AUTO-SHRINK only
+    // (see requestFit); clamping the base here silently raised any font
+    // below font_size_min back up to the floor (or 20px when unset),
+    // which made typed sizes like 8px impossible on the TV.
+    var base = el.font_size != null ? el.font_size : (el.font_size_max || 48);
     div.style.fontSize = base + 'px';
   }
 
@@ -482,10 +484,11 @@
     if (!content || (Array.isArray(content) && !content.length)) return;
     // Defer to after layout so clientHeight/scrollHeight are measurable.
     requestAnimationFrame(function () {
-      var base = el.font_size || 48;
+      // Start at the author's explicit size; only SHRINK to fit (never
+      // raise a small font up to min — same bug fixed in applyTextStyles).
+      var base = el.font_size != null ? el.font_size : (el.font_size_max || 48);
       var min = el.font_size_min || 20;
-      var max = el.font_size_max || 72;
-      var size = clamp(base, min, max);
+      var size = base;
       div.style.fontSize = size + 'px';
       var guard = 0;
       while (guard++ < 60) {
