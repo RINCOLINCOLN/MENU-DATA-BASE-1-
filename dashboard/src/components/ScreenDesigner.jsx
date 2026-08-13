@@ -241,7 +241,34 @@ export default function ScreenDesigner() {
   const [gesture, setGesture] = useState(null)          // {mode:'move'|'resize', id, startX, startY, rect}
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [fitScale, setFitScale] = useState(0.4)         // 1920×1080 design surface → on-screen scale
   const canvasRef = useRef(null)
+  const canvasWrapRef = useRef(null)
+
+  // Design-space contract: the TV renders a fixed 1920×1080 canvas scaled
+  // to the physical screen. Font sizes are px IN THAT DESIGN SPACE, so the
+  // preview must render on a 1920×1080 surface and scale it down — not a
+  // ~900px canvas with raw px fonts (that made fonts look ~2.1× bigger in
+  // the preview than on the actual TV).
+  const designOrientation = screen?.orientation || 'landscape'
+  const designW = designOrientation === 'portrait' ? 1080 : 1920
+  const designH = designOrientation === 'portrait' ? 1920 : 1080
+  useEffect(() => {
+    const wrap = canvasWrapRef.current
+    if (!wrap) return
+    const measure = () => {
+      const w = wrap.clientWidth
+      const h = wrap.clientHeight
+      if (!w || !h) return
+      setFitScale(Math.min(w / designW, h / designH))
+    }
+    measure()
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+    if (ro) ro.observe(wrap)
+    window.addEventListener('resize', measure)
+    return () => { if (ro) ro.disconnect(); window.removeEventListener('resize', measure) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [designOrientation, screen?.id])
 
   // Load screen + templates + menu items
   useEffect(() => {
@@ -438,7 +465,6 @@ export default function ScreenDesigner() {
   if (loading) return <SkeletonLoader />
   if (!screen) return <div className="text-center py-12 text-brand-muted">Screen not found</div>
 
-  const aspectRatio = isPortrait ? '9 / 16' : '16 / 9'
   const numInput = 'w-full input-field text-xs'
 
   return (
@@ -479,14 +505,26 @@ export default function ScreenDesigner() {
 
       {/* ── Body: canvas + properties ── */}
       <div className="flex-1 flex flex-col md:flex-row gap-3 mt-3 overflow-hidden min-h-0">
-        {/* Canvas */}
+        {/* Canvas — fixed 1920×1080 design surface, scaled to fit (same
+            contract as the TV PWA: fonts are px in design space) */}
         <div className="flex-1 bg-brand-surface rounded-xl border border-brand-border/40 p-3 md:p-4 flex items-center justify-center overflow-auto min-h-0">
-          <div
-            ref={canvasRef}
-            className="relative w-full max-w-[900px] rounded-lg overflow-hidden shadow-2xl select-none touch-none"
-            style={{ aspectRatio, backgroundColor: '#0b0b10', backgroundImage: 'radial-gradient(ellipse at 50% 35%, #171720 0%, #0b0b10 70%)' }}
-          >
-            {/* Background video (designer preview) */}
+          <div ref={canvasWrapRef} className="relative w-full h-full min-w-0 min-h-0 flex items-center justify-center">
+            {/* layout box = scaled design surface (keeps the transformed
+                canvas centered without overflowing the flex parent) */}
+            <div style={{ width: designW * fitScale, height: designH * fitScale }} className="relative">
+              <div
+                ref={canvasRef}
+                className="absolute top-0 left-0 rounded-lg overflow-hidden shadow-2xl select-none touch-none"
+                style={{
+                  width: designW,
+                  height: designH,
+                  transform: `scale(${fitScale})`,
+                  transformOrigin: 'top left',
+                  backgroundColor: '#0b0b10',
+                  backgroundImage: 'radial-gradient(ellipse at 50% 35%, #171720 0%, #0b0b10 70%)',
+                }}
+              >
+              {/* Background video (designer preview) */}
             {workingTemplate?.video_url ? (
               <video key={workingTemplate.id} className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                 src={workingTemplate.video_url} autoPlay muted loop playsInline />
@@ -499,7 +537,7 @@ export default function ScreenDesigner() {
             <div className="absolute inset-0 pointer-events-none opacity-[0.07]"
               style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.6) 1px, transparent 1px)', backgroundSize: '10% 10%' }} />
 
-            {/* Zones */}
+            {/* Zones — visual content inside scaled canvas */}
             {zones.map((zone, i) => {
               const selected = zone.id === selectedId
               const zoneBg = zone.bg_color && zone.bg_color !== 'transparent' ? zone.bg_color : undefined
@@ -523,20 +561,6 @@ export default function ScreenDesigner() {
                   <div className="w-full h-full overflow-hidden pointer-events-none">
                     <ZoneContent zone={zone} items={menuItems} />
                   </div>
-
-                  {/* zone label chip */}
-                  <div className={`absolute -top-0 left-0 -translate-y-full px-1.5 py-0.5 rounded-t text-[10px] font-medium whitespace-nowrap ${selected ? 'bg-amber-400 text-black' : 'bg-black/70 text-white/80'}`}>
-                    {zone.label || zone.type} · {zone.font_size}px
-                  </div>
-
-                  {/* resize handle */}
-                  <div
-                    onPointerDown={e => startGesture(e, zone.id, 'resize')}
-                    className="absolute bottom-0 right-0 w-5 h-5 bg-amber-400 rounded-sm cursor-se-resize shadow"
-                    style={{ touchAction: 'none' }}
-                  >
-                    <div className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 border-r-2 border-b-2 border-black/70" />
-                  </div>
                 </div>
               )
             })}
@@ -547,6 +571,40 @@ export default function ScreenDesigner() {
                 <div className="text-sm">Add your first element below to start designing</div>
               </div>
             )}
+              </div>
+
+              {/* Selection chrome — unscaled overlay at matching % coords so
+                  chips/handles stay full-size & grabbable regardless of fitScale */}
+              <div className="absolute inset-0 pointer-events-none">
+                {zones.map((zone) => {
+                  const selected = zone.id === selectedId
+                  return (
+                    <div key={zone.id}
+                      className="absolute"
+                      style={{
+                        left: `${zone.x || 0}%`,
+                        top: `${zone.y || 0}%`,
+                        width: `${zone.width || 80}%`,
+                        height: `${zone.height || 15}%`,
+                      }}
+                    >
+                      {/* zone label chip */}
+                      <div className={`absolute -top-0 left-0 -translate-y-full px-1.5 py-0.5 rounded-t text-[10px] font-medium whitespace-nowrap pointer-events-none ${selected ? 'bg-amber-400 text-black' : 'bg-black/70 text-white/80'}`}>
+                        {zone.label || zone.type} · {zone.font_size}px
+                      </div>
+                      {/* resize handle */}
+                      <div
+                        onPointerDown={e => startGesture(e, zone.id, 'resize')}
+                        className="absolute bottom-0 right-0 w-5 h-5 bg-amber-400 rounded-sm cursor-se-resize shadow pointer-events-auto"
+                        style={{ touchAction: 'none' }}
+                      >
+                        <div className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 border-r-2 border-b-2 border-black/70" />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -624,9 +682,12 @@ export default function ScreenDesigner() {
 
               <div>
                 <label className="flex justify-between text-xs font-medium text-brand-muted mb-1">
-                  <span>Font size</span><span className="font-mono text-brand-glow">{selectedZone.font_size || 34}px</span>
+                  <span>Font size <span className="text-[10px] text-brand-muted/70">(px @ 1920×1080)</span></span>
+                  <span className="font-mono text-brand-glow">{selectedZone.font_size || 34}px</span>
                 </label>
-                {/* Typed input + scrubbing slider (floor 6px suits 1920×1080 captions) */}
+                {/* Typed input + scrubbing slider. Values are design-space px:
+                    they render 1:1 on the TV's 1920×1080 canvas (scaled to the
+                    physical screen), matching the preview above. */}
                 <div className="flex items-center gap-2">
                   <NumberField className="input-field text-xs w-20 shrink-0" value={selectedZone.font_size || 34} min={6} max={160}
                     onCommit={v => updateZone(selectedZone.id, { font_size: v })} />
