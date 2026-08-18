@@ -18,9 +18,13 @@ const storage = multer.diskStorage({
   }
 });
 
+// Max upload size for menu-board background loops. Set to 500MB to
+// accommodate large cinematic loop videos (owner uploads ~290MB MP4s).
+const MAX_VIDEO_BYTES = 500 * 1024 * 1024; // 500MB max
+
 const upload = multer({
   storage,
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max
+  limits: { fileSize: MAX_VIDEO_BYTES }, // 500MB max
   fileFilter: (req, file, cb) => {
     const allowed = ['.mp4', '.webm', '.mov', '.avi', '.mkv'];
     const ext = path.extname(file.originalname).toLowerCase();

@@ -135,6 +135,12 @@ function UploadModal({ onClose, onSuccess }) {
       addToast('Name and video file are required', 'error')
       return
     }
+    // Reject files over the server's 500MB limit locally before uploading
+    const MAX_VIDEO_BYTES = 500 * 1024 * 1024
+    if (videoFile.size > MAX_VIDEO_BYTES) {
+      addToast(`File is too large. Maximum video size is 500MB.`, 'error')
+      return
+    }
     // Validate config JSON if provided
     if (configJson.trim()) {
       try { JSON.parse(configJson) } catch {
@@ -188,7 +194,7 @@ function UploadModal({ onClose, onSuccess }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-brand-text/80 mb-1">Video File (MP4, max 100MB)</label>
+            <label className="block text-sm font-medium text-brand-text/80 mb-1">Video File (MP4, max 500MB)</label>
             <div
               onDragOver={e => { e.preventDefault(); setDragOver(true) }}
               onDragLeave={() => setDragOver(false)}
@@ -210,7 +216,7 @@ function UploadModal({ onClose, onSuccess }) {
                 <div>
                   <span className="text-3xl">📁</span>
                   <p className="font-medium text-brand-text/80 mt-2">Drop video here or click to browse</p>
-                  <p className="text-xs text-brand-muted/60 mt-1">MP4, WebM, MOV (max 100MB)</p>
+                  <p className="text-xs text-brand-muted/60 mt-1">MP4, WebM, MOV (max 500MB)</p>
                 </div>
               )}
               <input ref={fileInputRef} type="file" accept=".mp4,.webm,.mov,.avi,.mkv" className="hidden"
