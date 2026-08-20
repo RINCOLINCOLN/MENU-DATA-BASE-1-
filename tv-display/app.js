@@ -620,15 +620,18 @@
 
   // ── Fullscreen / Kiosk Engagement ──────────────────────────────────
   // Hide browser chrome + address bar on TV/kiosk browsers. Degrades
-  // gracefully (still shows the fitted board) wherever the browser
+  // gracefully (the full-bleed board still shows) wherever the browser
   // blocks programmatic fullscreen without a user gesture.
-  function engageFullscreen() {
+
+  function isFullscreen() {
     const doc = document;
-    if (doc.fullscreenElement || doc.webkitFullscreenElement ||
-        doc.mozFullScreenElement || doc.msFullscreenElement) {
-      return; // already fullscreen
-    }
-    const el = doc.documentElement;
+    return !!(doc.fullscreenElement || doc.webkitFullscreenElement ||
+              doc.mozFullScreenElement || doc.msFullscreenElement);
+  }
+
+  function engageFullscreen() {
+    if (isFullscreen()) return; // already fullscreen
+    const el = document.documentElement;
     const rfs = el.requestFullscreen ||
                 el.webkitRequestFullscreen ||
                 el.webkitRequestFullScreen ||
@@ -638,25 +641,66 @@
     try {
       const p = rfs.call(el);
       if (p && typeof p.catch === 'function') {
-        p.catch(function () { /* blocked — ignore, board still shows */ });
+        // Blocked without a real gesture — the "Enter Fullscreen" button is
+        // the discoverable fallback for the owner to tap once.
+        p.catch(function () {});
       }
     } catch (e) { /* ignore */ }
   }
+
+  function updateFullscreenButton() {
+    const btn = document.getElementById('fullscreen-button');
+    if (!btn) return;
+    if (isFullscreen()) btn.classList.add('hidden');
+    else btn.classList.remove('hidden');
+  }
+
   function wireFullscreen() {
-    // Auto-attempt once on load (works in kiosk / TV browser profiles).
+    // Auto-attempt (kiosk / TV browser profiles allow this without a gesture).
     window.setTimeout(engageFullscreen, 500);
-    // Also engage on the first user interaction where browsers allow it,
-    // and keep retrying so re-entering after Esc/F11 stays in fullscreen.
+    window.setTimeout(engageFullscreen, 2000);
+
+    // Engage on the FIRST user interaction (where browsers allow fullscreen)
+    // and keep retrying on every subsequent interaction, so re-entering after
+    // Esc/F11 always returns to fullscreen.
     ['pointerdown', 'click', 'keydown', 'touchstart'].forEach(function (evt) {
       document.addEventListener(evt, engageFullscreen, { passive: true });
     });
-    // Re-fit when fullscreen toggles (viewport metrics change).
+
+    // Discoverable affordance: a tap on the button (a real user gesture)
+    // enters fullscreen even where programmatic auto-fullscreen is blocked.
+    const btn = document.getElementById('fullscreen-button');
+    if (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        engageFullscreen();
+      });
+    }
+
+    // Re-fit + toggle button visibility + (best-effort) re-engage when
+    // fullscreen toggles or the viewport/orientation changes.
     ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange',
      'MSFullscreenChange'].forEach(function (evt) {
       document.addEventListener(evt, function () {
         window.setTimeout(handleResize, 60);
+        updateFullscreenButton();
+        if (!isFullscreen()) {
+          // Re-request after an unexpected exit (blocked without a gesture
+          // in most browsers; the button is the guaranteed fallback).
+          window.setTimeout(engageFullscreen, 150);
+        }
       });
     });
+    ['orientationchange', 'resize'].forEach(function (evt) {
+      window.addEventListener(evt, function () {
+        window.setTimeout(handleResize, 60);
+        updateFullscreenButton();
+        window.setTimeout(engageFullscreen, 150);
+      });
+    });
+
+    // Initial button state.
+    updateFullscreenButton();
   }
 
   // ── Debug Mode Toggle ──────────────────────────────────────────────

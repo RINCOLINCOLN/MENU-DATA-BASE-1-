@@ -23,24 +23,34 @@ html, body {
 
 /* ── App Shell ───────────────────────────────────────────────────────── */
 
+/* #app is the 16:9 SAFE AREA: a 1920×1080 design canvas that app.js scales
+ * and centers on the viewport. Text overlays live here so they never get
+ * pushed off-screen. The video and layout background live OUTSIDE #app and
+ * bleed edge-to-edge behind this transparent canvas (full-bleed cover). */
 #app {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   width: 1920px;
   height: 1080px;
   transform-origin: top left;
   overflow: hidden;
-  background: #000;
+  background: transparent;
+  z-index: 10;
 }
 
-#video-layer {
-  position: absolute;
+/* Full-bleed video: fill the entire viewport edge-to-edge (cover crops as
+ * needed — no letterbox/pillarbox bars), the core of the "cover" mode. */
+#menu-video {
+  position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   object-fit: cover;
+  object-position: center;
+  background: #000;
+  z-index: 0;
 }
 
 /* ── Layout Background Layer ────────────────────────────────────────── */
@@ -56,11 +66,11 @@ html, body {
 }
 
 #layout-background {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   z-index: 1;
   background-color: #000;
   background-size: cover;
@@ -321,6 +331,48 @@ html, body {
 #mode-indicator.degraded { background: #ecc94b; }
 #mode-indicator.failsafe { background: #f56565; }
 
+/* ── Fullscreen Button (owner-facing affordance) ──────────────────────── */
+
+#fullscreen-button {
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid rgba(255,255,255,0.28);
+  border-radius: 8px;
+  background: rgba(10,10,20,0.78);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  opacity: 0.9;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+#fullscreen-button svg {
+  flex: 0 0 auto;
+  display: block;
+}
+
+#fullscreen-button:hover {
+  opacity: 1;
+  background: rgba(20,20,35,0.9);
+}
+
+/* Fade the button out once fullscreen is active (kiosk chrome hidden). */
+#fullscreen-button.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+}
+
 /* ── Loading Screen ─────────────────────────────────────────────────── */
 
 #loading-screen {
@@ -396,7 +448,7 @@ html, body {
   background: #4a5568;
 }
 /* Responsive Scaling ------------------------------------------------------ */
-/* The board is a fixed 1920x1080 design canvas. handleResize() in app.js
- * scales #app via a single transform so video, background, and text
- * overlays shrink and center together on ANY viewport (laptop, tablet, TV).
- * Black letterbox/pillarbox bars appear when the window is not 16:9. */
+/* The video bleeds edge-to-edge (object-fit: cover, cropping as needed). The
+ * 16:9 SAFE AREA (#app) is a fixed 1920x1080 canvas that handleResize() in
+ * app.js scales and centers on the viewport, so text overlays stay inside
+ * the safe area on ANY aspect ratio (laptop, tablet, TV, portrait). */
