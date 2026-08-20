@@ -242,7 +242,7 @@
   async function loadFromCache() {
     if (!('caches' in window)) return null;
     try {
-      const cache = await caches.open('lumenu-v1-data');
+      const cache = await caches.open('lumenu-data');
       const request = new Request(`${API_BASE}/screens/${state.slug}/data`);
       const response = await cache.match(request);
       if (response && response.ok) {

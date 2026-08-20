@@ -3,11 +3,23 @@
  * Three-tier offline fallback with background sync retry
  */
 
-const CACHE_VERSION = 'lumenu-v1';
-const STATIC_CACHE = `${CACHE_VERSION}-static`;
-const VIDEO_CACHE = `${CACHE_VERSION}-video`;
-const IMAGE_CACHE = `${CACHE_VERSION}-images`;
-const DATA_CACHE = `${CACHE_VERSION}-data`;
+// ── Cache naming ─────────────────────────────────────────────────────────
+// CACHE_VERSION MUST be bumped whenever the app shell (index.html / app.js /
+// app.css / layout-model.js) changes. The version is baked into the static
+// cache name, so the browser sees a byte-different service-worker.js and
+// re-precaches the shell; on activate, the previous version's static cache is
+// purged. Without a bump, a kiosk/TV that loaded once would keep the stale
+// shell forever (the exact bug that motivated this change).
+//
+// Video / image / data caches are intentionally UNversioned. A shell update
+// must never force a large menu-board video to re-download, so those caches
+// survive version bumps. The activate cleanup only deletes stale *-static*
+// and legacy menuloop-* caches — never these stable names.
+const CACHE_VERSION = 'lumenu-v2';
+const STATIC_CACHE = `${CACHE_VERSION}-static`; // versioned → app shell freshness
+const VIDEO_CACHE = 'lumenu-video';             // stable → keep cached video across updates
+const IMAGE_CACHE = 'lumenu-images';            // stable → layout backgrounds survive
+const DATA_CACHE = 'lumenu-data';               // stable → short-lived menu data
 
 const TV_PREFIX = '/tv';
 const PRECACHE_URLS = [
@@ -88,9 +100,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets use stale-while-revalidate for freshness + speed
+  // HTML document (navigation) → network-first with cache fallback. The page
+  // shell must always reflect the latest server version; on a kiosk/TV that
+  // loads once and stays, stale-while-revalidate would keep serving an old
+  // index.html forever. Offline still falls back to the cached shell.
   const isIndex = path === '/index.html' || path === TV_PREFIX + '/index.html' || path === '/' || path === TV_PREFIX + '/';
-  if (path.match(/\.(css|js|json|svg|ico)$/i) || isIndex) {
+  if (event.request.mode === 'navigate' || isIndex) {
+    event.respondWith(networkFirstForHTML(event.request, STATIC_CACHE));
+    return;
+  }
+
+  // Static assets use stale-while-revalidate for freshness + speed. They are
+  // re-precached fresh whenever CACHE_VERSION is bumped, so this stays fast
+  // without ever pinning stale JS/CSS.
+  if (path.match(/\.(css|js|json|svg|ico)$/i)) {
     event.respondWith(staleWhileRevalidate(event.request, STATIC_CACHE));
     return;
   }
@@ -169,6 +192,36 @@ async function staleWhileRevalidate(request, cacheName) {
     .catch(() => cached);
 
   return cached || fetchPromise;
+}
+
+/** Network-first for the HTML document: always prefer the live shell so a
+ *  kiosk/TV never gets pinned to an old page; fall back to the cached shell
+ *  (or a bare offline response) when the network is unavailable. */
+async function networkFirstForHTML(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      cache.put(request, response.clone());
+      return response;
+    }
+    // Non-OK response (404/500) — prefer a previously cached shell over an
+    // error page, so a transient server issue still shows the last good board.
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    return response;
+  } catch (err) {
+    // Offline — serve the last cached HTML shell if we have one.
+    const cached =
+      (await cache.match(request)) ||
+      (await cache.match(TV_PREFIX + '/index.html')) ||
+      (await cache.match(TV_PREFIX + '/'));
+    if (cached) return cached;
+    return new Response('Offline', {
+      status: 503,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    });
+  }
 }
 
 // ── Background Sync ─────────────────────────────────────────────────────
