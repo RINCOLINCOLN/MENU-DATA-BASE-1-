@@ -72,6 +72,11 @@
     els.debugRender = document.getElementById('debug-render');
 
     state.videoElement = els.video;
+    // Fit the board to the current viewport immediately (the device-width
+    // viewport now reports the real window size, so this must run on load).
+    handleResize();
+    // Engage fullscreen/kiosk where the browser allows it.
+    wireFullscreen();
 
     // Register service worker
     registerSW();
@@ -589,32 +594,69 @@
     }
   }
 
-  // ── Window Resize Handler (scale display) ──────────────────────────
+  // ── Window Resize Handler (fit the 1920×1080 board to ANY viewport) ──
   function handleResize() {
     const app = els.app;
     if (!app) return;
 
-    // The CSS handles most of the scaling via viewport units,
-    // but we ensure full-viewport coverage
-    const ww = window.innerWidth;
-    const wh = window.innerHeight;
-    const targetRatio = 1920 / 1080; // 16:9
+    // Fit the board to the real viewport: scale down with a single
+    // transform so the video, background, and ALL text overlays stay in
+    // lockstep at any window size. Letterbox/pillarbox bars fill the rest.
+    const D = window.__LUMENU_BOARD || {};   // 1920×1080 design canvas
+    const BW = D.width || 1920;
+    const BH = D.height || 1080;
+    const ww = window.innerWidth || document.documentElement.clientWidth;
+    const wh = window.innerHeight || document.documentElement.clientHeight;
+    const scale = Math.min(ww / BW, wh / BH);
 
-    let appW, appH;
-    if (ww / wh > targetRatio) {
-      // Window is wider than 16:9
-      appH = wh;
-      appW = wh * targetRatio;
-    } else {
-      // Window is taller than 16:9
-      appW = ww;
-      appH = ww / targetRatio;
+    app.style.width = BW + 'px';
+    app.style.height = BH + 'px';
+    app.style.transform = 'scale(' + scale + ')';
+    app.style.transformOrigin = 'top left';
+    app.style.margin = '0';
+    app.style.left = Math.round((ww - BW * scale) / 2) + 'px';
+    app.style.top = Math.round((wh - BH * scale) / 2) + 'px';
+  }
+
+  // ── Fullscreen / Kiosk Engagement ──────────────────────────────────
+  // Hide browser chrome + address bar on TV/kiosk browsers. Degrades
+  // gracefully (still shows the fitted board) wherever the browser
+  // blocks programmatic fullscreen without a user gesture.
+  function engageFullscreen() {
+    const doc = document;
+    if (doc.fullscreenElement || doc.webkitFullscreenElement ||
+        doc.mozFullScreenElement || doc.msFullscreenElement) {
+      return; // already fullscreen
     }
-
-    app.style.width = appW + 'px';
-    app.style.height = appH + 'px';
-    app.style.marginLeft = ((ww - appW) / 2) + 'px';
-    app.style.marginTop = ((wh - appH) / 2) + 'px';
+    const el = doc.documentElement;
+    const rfs = el.requestFullscreen ||
+                el.webkitRequestFullscreen ||
+                el.webkitRequestFullScreen ||
+                el.mozRequestFullScreen ||
+                el.msRequestFullscreen;
+    if (typeof rfs !== 'function') return;
+    try {
+      const p = rfs.call(el);
+      if (p && typeof p.catch === 'function') {
+        p.catch(function () { /* blocked — ignore, board still shows */ });
+      }
+    } catch (e) { /* ignore */ }
+  }
+  function wireFullscreen() {
+    // Auto-attempt once on load (works in kiosk / TV browser profiles).
+    window.setTimeout(engageFullscreen, 500);
+    // Also engage on the first user interaction where browsers allow it,
+    // and keep retrying so re-entering after Esc/F11 stays in fullscreen.
+    ['pointerdown', 'click', 'keydown', 'touchstart'].forEach(function (evt) {
+      document.addEventListener(evt, engageFullscreen, { passive: true });
+    });
+    // Re-fit when fullscreen toggles (viewport metrics change).
+    ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange',
+     'MSFullscreenChange'].forEach(function (evt) {
+      document.addEventListener(evt, function () {
+        window.setTimeout(handleResize, 60);
+      });
+    });
   }
 
   // ── Debug Mode Toggle ──────────────────────────────────────────────
@@ -737,6 +779,13 @@
   }
 
   window.addEventListener('resize', handleResize);
+  window.addEventListener('orientationchange', function () {
+    window.setTimeout(handleResize, 120);
+  });
+  // visualViewport can report a fractional / account-for-browser-chrome size.
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', handleResize);
+  }
 
   // Export state for debugging
   window.__state = state;
