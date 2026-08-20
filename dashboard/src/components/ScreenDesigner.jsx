@@ -241,7 +241,17 @@ export default function ScreenDesigner() {
   const [gesture, setGesture] = useState(null)          // {mode:'move'|'resize', id, startX, startY, rect}
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const canvasRef = useRef(null)
+  // Zoom / canvas sizing. The canvas is a FIXED-SIZE design surface (1920×1080
+  // landscape / 1080×1920 portrait — the same coordinates the TV PWA renders),
+  // displayed at `totalScale = baseScale * zoom`.
+  //   baseScale — "fit" scale: fits the whole board into the available pane
+  //               (recomputed live via ResizeObserver so it grows on big screens).
+  //   zoom      — user-controlled focus multiplier (100% = fit). Lets the owner
+  //               zoom in to fine-tune a price box and zoom out to see the board.
+  const [baseScale, setBaseScale] = useState(0.4)
+  const [zoom, setZoom] = useState(1)
+  const panRef = useRef(null)   // scroll/pane that the board fits within
+  const canvasRef = useRef(null) // the scaled design-space canvas (drag math target)
 
   // Load screen + templates + menu items
   useEffect(() => {
@@ -397,6 +407,43 @@ export default function ScreenDesigner() {
     }
   }, [gesture])
 
+  /* ── zoom / fit ──
+     The design surface is fixed (1920×1080 / 1080×1920). baseScale is the
+     "fit" scale that lays the whole board into the pane; zoom multiplies it.
+     Because zone coordinates are % of that fixed surface and drag math reads
+     getBoundingClientRect() (which returns the already-scaled size), pointer
+     deltas convert to % correctly at ANY zoom — no manual scale math needed. */
+  const designW = isPortrait ? 1080 : 1920
+  const designH = isPortrait ? 1920 : 1080
+  const totalScale = baseScale * zoom
+
+  useEffect(() => {
+    const el = panRef.current
+    if (!el || !designW || !designH) return
+    const compute = () => {
+      const r = el.getBoundingClientRect()   // pane size is size-invariant to its own content
+      const pad = 32                          // breathing room around the board
+      const s = Math.min(
+        (r.width ? (r.width - pad) / designW : Infinity),
+        (r.height ? (r.height - pad) / designH : Infinity),
+      )
+      setBaseScale(Number.isFinite(s) ? Math.max(0.05, s) : 0.4)
+    }
+    compute()
+    const ro = new ResizeObserver(compute)
+    ro.observe(el)
+    window.addEventListener('resize', compute)
+    return () => { ro.disconnect(); window.removeEventListener('resize', compute) }
+  }, [designW, designH])
+
+  const zoomIn = () => setZoom(z => +(Math.min(4, z * 1.25)).toFixed(2))
+  const zoomOut = () => setZoom(z => +(Math.max(0.35, z / 1.25)).toFixed(2))
+  const zoomFit = () => setZoom(1)
+  const zoomPct = Math.round(zoom * 100)
+
+  /* Deselect when tapping empty board background */
+  const deselectCanvas = (e) => { if (e.target === e.currentTarget) setSelectedId(null) }
+
   /* ── save ── */
   const handleSave = async () => {
     if (zones.length === 0 && templateId) {
@@ -438,7 +485,6 @@ export default function ScreenDesigner() {
   if (loading) return <SkeletonLoader />
   if (!screen) return <div className="text-center py-12 text-brand-muted">Screen not found</div>
 
-  const aspectRatio = isPortrait ? '9 / 16' : '16 / 9'
   const numInput = 'w-full input-field text-xs'
 
   return (
@@ -480,12 +526,43 @@ export default function ScreenDesigner() {
       {/* ── Body: canvas + properties ── */}
       <div className="flex-1 flex flex-col md:flex-row gap-3 mt-3 overflow-hidden min-h-0">
         {/* Canvas */}
-        <div className="flex-1 bg-brand-surface rounded-xl border border-brand-border/40 p-3 md:p-4 flex items-center justify-center overflow-auto min-h-0">
-          <div
-            ref={canvasRef}
-            className="relative w-full max-w-[900px] rounded-lg overflow-hidden shadow-2xl select-none touch-none"
-            style={{ aspectRatio, backgroundColor: '#0b0b10', backgroundImage: 'radial-gradient(ellipse at 50% 35%, #171720 0%, #0b0b10 70%)' }}
-          >
+        <div className="flex-1 min-w-0 bg-brand-surface rounded-xl border border-brand-border/40 overflow-hidden flex flex-col min-h-0 relative">
+          {/* Zoom toolbar */}
+          <div className="absolute top-2.5 right-2.5 z-30 flex items-center gap-1 rounded-xl bg-black/50 backdrop-blur border border-white/10 p-1 shadow-lg">
+            <button onClick={zoomOut} title="Zoom out" aria-label="Zoom out"
+              className="w-9 h-9 flex items-center justify-center rounded-lg text-brand-muted hover:text-white hover:bg-white/10 text-lg leading-none touch-manipulation">−</button>
+            <button onClick={zoomFit} title="Fit whole board" aria-label="Fit whole board"
+              className="min-w-[52px] h-9 px-2 flex items-center justify-center rounded-lg text-[11px] font-semibold text-white/80 hover:bg-white/10 touch-manipulation">
+              {zoom === 1 ? '⤢ Fit' : `${zoomPct}%`}
+            </button>
+            <button onClick={zoomIn} title="Zoom in" aria-label="Zoom in"
+              className="w-9 h-9 flex items-center justify-center rounded-lg text-brand-muted hover:text-white hover:bg-white/10 text-lg leading-none touch-manipulation">＋</button>
+          </div>
+
+          {/* Scrollable pane (native pan when zoomed in) */}
+          <div ref={panRef} className="flex-1 min-h-0 min-w-0 overflow-auto">
+            <div className="flex" style={{ minWidth: '100%', minHeight: '100%' }}>
+              {/* Unscaled layout box (sized to designW/H × totalScale). m-auto centers
+                  when the board is smaller than the pane and collapses to normal flow
+                  (with scroll) when it overflows, so edges are always reachable. */}
+              <div className="m-auto shrink-0 overflow-hidden rounded-lg shadow-2xl"
+                style={{ width: designW * totalScale, height: designH * totalScale }}>
+                {/* The actual design-space canvas — scaled via transform. Drag math
+                    reads getBoundingClientRect(), which returns the SCALED size, so % 
+                    deltas stay correct at every zoom. */}
+                <div
+                  ref={canvasRef}
+                  className="relative select-none touch-none"
+                  onPointerDown={deselectCanvas}
+                  style={{
+                    width: designW,
+                    height: designH,
+                    transform: `scale(${totalScale})`,
+                    transformOrigin: 'top left',
+                    backgroundColor: '#0b0b10',
+                    backgroundImage: 'radial-gradient(ellipse at 50% 35%, #171720 0%, #0b0b10 70%)',
+                  }}
+                >
             {/* Background video (designer preview) */}
             {workingTemplate?.video_url ? (
               <video key={workingTemplate.id} className="absolute inset-0 w-full h-full object-cover pointer-events-none"
@@ -532,10 +609,11 @@ export default function ScreenDesigner() {
                   {/* resize handle */}
                   <div
                     onPointerDown={e => startGesture(e, zone.id, 'resize')}
-                    className="absolute bottom-0 right-0 w-5 h-5 bg-amber-400 rounded-sm cursor-se-resize shadow"
+                    className="absolute bottom-0 right-0 w-7 h-7 flex items-center justify-center bg-amber-400 rounded-md cursor-se-resize shadow z-10 touch-manipulation"
                     style={{ touchAction: 'none' }}
+                    title="Drag to resize"
                   >
-                    <div className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 border-r-2 border-b-2 border-black/70" />
+                    <div className="w-3 h-3 border-r-2 border-b-2 border-black/70" />
                   </div>
                 </div>
               )
@@ -547,8 +625,11 @@ export default function ScreenDesigner() {
                 <div className="text-sm">Add your first element below to start designing</div>
               </div>
             )}
-          </div>
-        </div>
+                </div>{/* /canvas */}
+              </div>{/* /layout box */}
+            </div>{/* /centering wrapper */}
+          </div>{/* /pan */}
+        </div>{/* /canvas container */}
 
         {/* ── Properties panel ── */}
         <div className="w-full md:w-[340px] shrink-0 bg-brand-surface rounded-xl border border-brand-border/40 overflow-y-auto min-h-0">
@@ -570,6 +651,40 @@ export default function ScreenDesigner() {
               </button>
             ))}
           </div>
+
+          {/* Existing zones — clickable list for easy selection */}
+          {zones.length > 0 && (
+            <div className="px-3 py-3 border-b border-brand-border/30">
+              <h4 className="text-[10px] font-semibold uppercase tracking-wider text-brand-muted px-1 mb-2">
+                Your zones ({zones.length})
+              </h4>
+              <div className="max-h-44 overflow-y-auto space-y-1 pr-0.5">
+                {zones.map(z => {
+                  const sel = z.id === selectedId
+                  const zt = ZONE_TYPES.find(t => t.value === z.type)
+                  return (
+                    <button key={z.id} onClick={() => setSelectedId(z.id)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border text-left transition-colors touch-manipulation ${
+                        sel ? 'border-amber-400/60 bg-amber-400/10' : 'border-brand-border/40 hover:bg-brand-surface-alt/60'
+                      }`}>
+                      <span className="text-base shrink-0">{sel ? '▸' : ''}{zt?.icon || '🔤'}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className={`block text-xs font-semibold truncate ${sel ? 'text-brand-text' : 'text-brand-text/80'}`}>
+                          {z.label || z.type}
+                        </span>
+                        <span className="block text-[10px] text-brand-muted truncate">
+                          {z.type.replace('_', ' ')} · {Math.round(z.width || 0)}% × {Math.round(z.height || 0)}%
+                        </span>
+                      </span>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-black/40 text-brand-muted shrink-0 tabular-nums">
+                        {Math.round(z.x || 0)},{Math.round(z.y || 0)}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Selected zone properties */}
           {selectedZone ? (
