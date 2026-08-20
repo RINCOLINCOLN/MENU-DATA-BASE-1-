@@ -20,23 +20,25 @@
     <div class="spinner"></div>
   </div>
 
-  <!-- Main App Container (1920x1080 viewport) -->
+  <!-- Full-bleed video layer: covers the ENTIRE viewport edge-to-edge
+       (object-fit: cover, cropping as needed) — no letterbox/pillarbox bars -->
+  <video id="menu-video"
+         playsinline
+         webkit-playsinline
+         muted
+         autoplay
+         loop
+         preload="auto"
+         data-src=""
+         poster="assets/fallback.svg">
+  </video>
+
+  <!-- Full-bleed layout background (image/color backgrounds from a layout) -->
+  <div id="layout-background" class="hidden"></div>
+
+  <!-- 16:9 safe-area canvas (centered + scaled): holds text overlays so they
+       never get pushed off-screen on non-16:9 displays -->
   <div id="app">
-
-    <!-- Video Layer -->
-    <video id="menu-video"
-           playsinline
-           webkit-playsinline
-           muted
-           autoplay
-           loop
-           preload="auto"
-           data-src=""
-           poster="assets/fallback.svg">
-    </video>
-
-    <!-- Layout Background Layer (image/color backgrounds from a layout) -->
-    <div id="layout-background" class="hidden"></div>
 
     <!-- Text Overlay Layer -->
     <div id="overlay-layer"></div>
@@ -48,6 +50,14 @@
     </div>
 
   </div>
+
+  <!-- Fullscreen affordance (owner-facing; fades out once fullscreen is active) -->
+  <button id="fullscreen-button" type="button" title="Enter fullscreen">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+    </svg>
+    <span>Enter Fullscreen</span>
+  </button>
 
   <!-- Mode Indicator (subtle dot, bottom-right, owner-facing) -->
   <div id="mode-indicator" class="online"></div>
