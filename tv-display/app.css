@@ -24,7 +24,9 @@ html, body {
 /* ── App Shell ───────────────────────────────────────────────────────── */
 
 #app {
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 1920px;
   height: 1080px;
   transform-origin: top left;
@@ -393,16 +395,8 @@ html, body {
 #debug-bar .dbg-btn:hover {
   background: #4a5568;
 }
-
-/* ── Responsive Scaling ─────────────────────────────────────────────── */
-
-/* Scale down for smaller screens while keeping 1920×1080 aspect ratio */
-@media (max-width: 1920px) {
-  #app {
-    width: 100vw;
-    height: 56.25vw; /* 9/16 = 0.5625 */
-    max-height: 100vh;
-    max-width: 177.78vh; /* 16/9 = 1.7778 */
-    margin: auto;
-  }
-}
+/* Responsive Scaling ------------------------------------------------------ */
+/* The board is a fixed 1920x1080 design canvas. handleResize() in app.js
+ * scales #app via a single transform so video, background, and text
+ * overlays shrink and center together on ANY viewport (laptop, tablet, TV).
+ * Black letterbox/pillarbox bars appear when the window is not 16:9. */
