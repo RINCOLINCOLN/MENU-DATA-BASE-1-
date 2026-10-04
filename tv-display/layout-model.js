@@ -18,6 +18,17 @@
 
   var DEFAULT_CANVAS = { width: 1920, height: 1080 };
 
+  /**
+   * Update the default design-surface dimensions. The TV PWA calls this when
+   * it applies screen data, so portrait screens (1080×1920) use the correct
+   * canvas for px→% conversion and for layouts/zones lacking explicit dims.
+   * Landscape stays 1920×1080.
+   */
+  function setDefaultCanvas(width, height) {
+    if (typeof width === 'number' && width > 0) DEFAULT_CANVAS.width = width;
+    if (typeof height === 'number' && height > 0) DEFAULT_CANVAS.height = height;
+  }
+
   // ── Small utilities ─────────────────────────────────────────────────
 
   function tryParse(v) {
@@ -547,6 +558,7 @@
     toPercent: toPercent,
     formatPrice: formatPrice,
     DEFAULT_CANVAS: DEFAULT_CANVAS,
+    setDefaultCanvas: setDefaultCanvas,
   };
 
 })(typeof window !== 'undefined' ? window : globalThis);

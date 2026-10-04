@@ -263,6 +263,41 @@
     return await response.json();
   }
 
+  // ── Board Orientation (design surface) ───────────────────────────────
+  // The design surface is FIXED per orientation, matching the Screen Designer:
+  //   1920×1080 landscape  /  1080×1920 portrait.
+  // handleResize() scales/centers this surface on the real viewport, and the
+  // layout renderer uses the same dimensions so zone %/px math stays correct.
+  const BOARD_DIMS = {
+    landscape: { width: 1920, height: 1080 },
+    portrait: { width: 1080, height: 1920 },
+  };
+
+  function boardForOrientation(orientation) {
+    return (String(orientation || '').toLowerCase() === 'portrait')
+      ? BOARD_DIMS.portrait
+      : BOARD_DIMS.landscape;
+  }
+
+  /** Read the screen/template orientation out of a screen-data payload. */
+  function resolveBoard(data) {
+    if (!data) return null;
+    const orientation =
+      (data.screen && data.screen.orientation) ||
+      (data.template && data.template.orientation) ||
+      data.orientation;
+    return orientation ? boardForOrientation(orientation) : null;
+  }
+
+  /** Apply the board dimensions to the viewport fitter and the layout renderer. */
+  function applyBoard(board) {
+    if (!board) return;
+    window.__LUMENU_BOARD = board;
+    if (window.LumenuLayout && typeof window.LumenuLayout.setDefaultCanvas === 'function') {
+      window.LumenuLayout.setDefaultCanvas(board.width, board.height);
+    }
+  }
+
   // ── Screen Data Application ─────────────────────────────────────────
   function applyScreenData(data, fromCache) {
     state.screenData = data;
@@ -271,6 +306,11 @@
       enterFailsafeMode();
       return;
     }
+
+    // Determine the board orientation from the loaded screen/template data and
+    // apply it BEFORE rendering, so both the layout renderer (px→% conversion,
+    // default canvas) and the viewport fitter use the correct design surface.
+    applyBoard(resolveBoard(data));
 
     // Update template config
     state.templateConfig = data.template || state.templateConfig;
@@ -284,6 +324,9 @@
 
     // Render overlays — per-screen canvas layout if present, else legacy zones
     state.renderMode = renderOverlays(data);
+
+    // Re-fit the board now that orientation is known (portrait vs landscape).
+    handleResize();
 
     // Set mode to normal if we have video and data
     if (state.videoLoaded || fromCache) {
@@ -594,7 +637,7 @@
     }
   }
 
-  // ── Window Resize Handler (fit the 1920×1080 board to ANY viewport) ──
+  // ── Window Resize Handler (fit the design surface to ANY viewport) ──
   function handleResize() {
     const app = els.app;
     if (!app) return;
@@ -602,7 +645,9 @@
     // Fit the board to the real viewport: scale down with a single
     // transform so the video, background, and ALL text overlays stay in
     // lockstep at any window size. Letterbox/pillarbox bars fill the rest.
-    const D = window.__LUMENU_BOARD || {};   // 1920×1080 design canvas
+    // The design surface is 1920×1080 (landscape) by default and flips to
+    // 1080×1920 once portrait screen data loads (see applyBoard/resolveBoard).
+    const D = window.__LUMENU_BOARD || {};   // { width, height } design canvas
     const BW = D.width || 1920;
     const BH = D.height || 1080;
     const ww = window.innerWidth || document.documentElement.clientWidth;
