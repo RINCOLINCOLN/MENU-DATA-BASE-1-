@@ -23,10 +23,11 @@ html, body {
 
 /* ── App Shell ───────────────────────────────────────────────────────── */
 
-/* #app is the 16:9 SAFE AREA: a 1920×1080 design canvas that app.js scales
- * and centers on the viewport. Text overlays live here so they never get
- * pushed off-screen. The video and layout background live OUTSIDE #app and
- * bleed edge-to-edge behind this transparent canvas (full-bleed cover). */
+/* #app is the SAFE AREA: a fixed design canvas (1920×1080 landscape or
+ * 1080×1920 portrait) that app.js scales and centers on the viewport. Text
+ * overlays live here so they never get pushed off-screen. The video and layout
+ * background live OUTSIDE #app and bleed edge-to-edge behind this transparent
+ * canvas (full-bleed cover). */
 #app {
   position: fixed;
   top: 0;
@@ -449,6 +450,7 @@ html, body {
 }
 /* Responsive Scaling ------------------------------------------------------ */
 /* The video bleeds edge-to-edge (object-fit: cover, cropping as needed). The
- * 16:9 SAFE AREA (#app) is a fixed 1920x1080 canvas that handleResize() in
- * app.js scales and centers on the viewport, so text overlays stay inside
- * the safe area on ANY aspect ratio (laptop, tablet, TV, portrait). */
+ * SAFE AREA (#app) is a fixed design canvas (1920×1080 landscape / 1080×1920
+ * portrait) that handleResize() in app.js scales and centers on the viewport,
+ * so text overlays stay inside the safe area on ANY aspect ratio (laptop,
+ * tablet, TV, portrait). */
