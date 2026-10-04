@@ -434,7 +434,10 @@ export default function ScreenDesigner() {
     ro.observe(el)
     window.addEventListener('resize', compute)
     return () => { ro.disconnect(); window.removeEventListener('resize', compute) }
-  }, [designW, designH])
+    // `loading` re-runs this after the SkeletonLoader is replaced by the real
+    // designer: on first mount panRef.current is null (early return above), so
+    // without it the observer would never attach and baseScale would sit at 0.4.
+  }, [designW, designH, loading])
 
   const zoomIn = () => setZoom(z => +(Math.min(4, z * 1.25)).toFixed(2))
   const zoomOut = () => setZoom(z => +(Math.max(0.35, z / 1.25)).toFixed(2))
@@ -488,7 +491,9 @@ export default function ScreenDesigner() {
   const numInput = 'w-full input-field text-xs'
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] min-h-[640px]">
+    /* On phones the fixed-height root scrolls to reveal the canvas + properties
+       stacked vertically; desktop (md+) keeps the original fixed work area. */
+    <div className="flex flex-col h-[calc(100vh-4rem)] min-h-[640px] overflow-y-auto md:overflow-visible">
       {/* ── Header bar ── */}
       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-brand-border/50 bg-brand-surface/80 backdrop-blur rounded-xl">
         <div className="flex items-center gap-3 min-w-0">
@@ -524,9 +529,12 @@ export default function ScreenDesigner() {
       </div>
 
       {/* ── Body: canvas + properties ── */}
-      <div className="flex-1 flex flex-col md:flex-row gap-3 mt-3 overflow-hidden min-h-0">
-        {/* Canvas */}
-        <div className="flex-1 min-w-0 bg-brand-surface rounded-xl border border-brand-border/40 overflow-hidden flex flex-col min-h-0 relative">
+      {/* Mobile: column stack must overflow visibly so the root scrolls to the
+          properties panel below the canvas. Desktop (md+): clip to the fixed
+          height exactly as before (canvas left, 340px panel right). */}
+      <div className="flex-1 flex flex-col md:flex-row gap-3 mt-3 overflow-visible min-h-0 md:overflow-hidden">
+        {/* Canvas — guarantees a usable height on phones; md+ uses flex-1 fill */}
+        <div className="flex-1 min-w-0 bg-brand-surface rounded-xl border border-brand-border/40 overflow-hidden flex flex-col min-h-[55vh] relative md:min-h-0">
           {/* Zoom toolbar */}
           <div className="absolute top-2.5 right-2.5 z-30 flex items-center gap-1 rounded-xl bg-black/50 backdrop-blur border border-white/10 p-1 shadow-lg">
             <button onClick={zoomOut} title="Zoom out" aria-label="Zoom out"
