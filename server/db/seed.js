@@ -6,25 +6,25 @@ const db = getDb();
 
 console.log('🌱 Seeding Lumenu demo data...\n');
 
-// Clean existing data
-db.exec('DELETE FROM schedules');
-db.exec('DELETE FROM menu_items');
-db.exec('DELETE FROM screens');
-db.exec('DELETE FROM templates');
-db.exec('DELETE FROM restaurants');
-db.exec('DELETE FROM users');
+// Idempotent guard: NEVER wipe an existing database (live owner data).
+// Seed only when the users table is empty (fresh clone / first boot).
+const userCount = db.prepare('SELECT COUNT(*) c FROM users').get().c;
+if (userCount > 0) {
+  console.log(`  ⏭️  Skipping seed — ${userCount} user(s) already present. Run on a fresh DB only.`);
+  process.exit(0);
+}
 
 // ── 1. Create users ──
 const ownerId = uuidv4();
 const passwordHash = bcrypt.hashSync('demo1234', 10);
 db.prepare('INSERT INTO users (id, email, password_hash, name) VALUES (?, ?, ?, ?)')
-  .run(ownerId, 'owner@lumenu.app', passwordHash, 'Sarah Chen');
+  .run(ownerId, 'owner@menuvo.app', passwordHash, 'Sarah Chen');
 
 const owner2Id = uuidv4();
 db.prepare('INSERT INTO users (id, email, password_hash, name) VALUES (?, ?, ?, ?)')
   .run(owner2Id, 'marco@trattoria.demo', passwordHash, 'Marco Rossi');
 
-console.log('  ✅ Created demo users (login: owner@lumenu.app / demo1234)');
+console.log('  ✅ Created demo users (login: owner@menuvo.app / demo1234)');
 
 // ── 2. Create restaurants ──
 const cafeId = uuidv4();

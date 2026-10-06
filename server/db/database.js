@@ -66,12 +66,16 @@ function initSchema(db) {
     CREATE TABLE IF NOT EXISTS menu_items (
       id TEXT PRIMARY KEY,
       screen_id TEXT NOT NULL REFERENCES screens(id),
-      name TEXT NOT NULL,
+      name TEXT,
       description TEXT,
       price REAL,
       category TEXT,
       availability TEXT DEFAULT 'available',
       text_zone_id TEXT,
+      font_family TEXT,
+      font_size INTEGER,
+      font_weight TEXT,
+      color TEXT,
       sort_order INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
@@ -92,6 +96,50 @@ function initSchema(db) {
   const screenCols = db.prepare('PRAGMA table_info(screens)').all();
   if (!screenCols.some(c => c.name === 'sort_order')) {
     db.exec('ALTER TABLE screens ADD COLUMN sort_order INTEGER DEFAULT 0');
+  }
+  // Migration: menu_items — name optional + per-item typography overrides
+  // (nullable columns = item inherits its zone's font/color)
+  const itemCols = db.prepare('PRAGMA table_info(menu_items)').all();
+  const itemMigrations = [
+    ['font_family', 'ALTER TABLE menu_items ADD COLUMN font_family TEXT'],
+    ['font_size', 'ALTER TABLE menu_items ADD COLUMN font_size INTEGER'],
+    ['font_weight', 'ALTER TABLE menu_items ADD COLUMN font_weight TEXT'],
+    ['color', 'ALTER TABLE menu_items ADD COLUMN color TEXT'],
+  ];
+  for (const [col, ddl] of itemMigrations) {
+    if (!itemCols.some(c => c.name === col)) db.exec(ddl);
+  }
+  // Migration: menu_items.name must be NULLABLE (price-only items). SQLite
+  // cannot alter a column's NOT NULL, so rebuild the table when needed.
+  const nameCol = db.prepare('PRAGMA table_info(menu_items)').all().find(c => c.name === 'name');
+  if (nameCol && nameCol.notnull) {
+    db.exec('PRAGMA foreign_keys = OFF');
+    db.transaction(() => {
+      db.exec(`
+        CREATE TABLE menu_items_new (
+          id TEXT PRIMARY KEY,
+          screen_id TEXT NOT NULL REFERENCES screens(id),
+          name TEXT,
+          description TEXT,
+          price REAL,
+          category TEXT,
+          availability TEXT DEFAULT 'available',
+          text_zone_id TEXT,
+          font_family TEXT,
+          font_size INTEGER,
+          font_weight TEXT,
+          color TEXT,
+          sort_order INTEGER DEFAULT 0,
+          created_at TEXT DEFAULT (datetime('now')),
+          updated_at TEXT DEFAULT (datetime('now'))
+        );
+        INSERT INTO menu_items_new (id, screen_id, name, description, price, category, availability, text_zone_id, font_family, font_size, font_weight, color, sort_order, created_at, updated_at)
+          SELECT id, screen_id, name, description, price, category, availability, text_zone_id, font_family, font_size, font_weight, color, sort_order, created_at, updated_at FROM menu_items;
+        DROP TABLE menu_items;
+        ALTER TABLE menu_items_new RENAME TO menu_items;
+      `);
+    })();
+    db.exec('PRAGMA foreign_keys = ON');
   }
 }
 

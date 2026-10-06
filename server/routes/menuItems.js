@@ -39,9 +39,11 @@ router.post('/screens/:screenId/menu-items', authMiddleware, (req, res) => {
     return res.status(404).json({ error: 'Screen not found' });
   }
 
-  const { name, description, price, category, availability, text_zone_id } = req.body;
-  if (!name) {
-    return res.status(400).json({ error: 'name is required' });
+  const { name, description, price, category, availability, text_zone_id, font_family, font_size, font_weight, color } = req.body;
+  // Name is OPTIONAL: the dish may already be visible in the background video,
+  // so the item becomes a price-only overlay. Price stays validated.
+  if (price !== undefined && price !== null && price !== '' && !Number.isFinite(Number(price))) {
+    return res.status(400).json({ error: 'price must be a number' });
   }
 
   const id = uuidv4();
@@ -53,10 +55,12 @@ router.post('/screens/:screenId/menu-items', authMiddleware, (req, res) => {
   const sortOrder = (maxOrder?.max || 0) + 1;
 
   db.prepare(`
-    INSERT INTO menu_items (id, screen_id, name, description, price, category, availability, text_zone_id, sort_order)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, req.params.screenId, name, description || null, price || null, category || null,
-    availability || 'available', text_zone_id || null, sortOrder);
+    INSERT INTO menu_items (id, screen_id, name, description, price, category, availability, text_zone_id, font_family, font_size, font_weight, color, sort_order)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, req.params.screenId, name || null, description || null, price === '' || price === undefined || price === null ? null : Number(price), category || null,
+    availability || 'available', text_zone_id || null, font_family || null,
+    font_size === '' || font_size === undefined || font_size === null ? null : Number(font_size),
+    font_weight || null, color || null, sortOrder);
 
   const item = db.prepare('SELECT * FROM menu_items WHERE id = ?').get(id);
 
@@ -80,16 +84,20 @@ router.patch('/menu-items/:id', authMiddleware, (req, res) => {
     return res.status(404).json({ error: 'Menu item not found' });
   }
 
-  const { name, description, price, category, availability, text_zone_id, sort_order } = req.body;
+  const { name, description, price, category, availability, text_zone_id, font_family, font_size, font_weight, color, sort_order } = req.body;
   const updates = [];
   const values = [];
 
-  if (name !== undefined) { updates.push('name = ?'); values.push(name); }
+  if (name !== undefined) { updates.push('name = ?'); values.push(name === '' ? null : name); }
   if (description !== undefined) { updates.push('description = ?'); values.push(description); }
   if (price !== undefined) { updates.push('price = ?'); values.push(price); }
   if (category !== undefined) { updates.push('category = ?'); values.push(category); }
   if (availability !== undefined) { updates.push('availability = ?'); values.push(availability); }
   if (text_zone_id !== undefined) { updates.push('text_zone_id = ?'); values.push(text_zone_id); }
+  if (font_family !== undefined) { updates.push('font_family = ?'); values.push(font_family); }
+  if (font_size !== undefined) { updates.push('font_size = ?'); values.push(font_size === '' ? null : Number(font_size)); }
+  if (font_weight !== undefined) { updates.push('font_weight = ?'); values.push(font_weight); }
+  if (color !== undefined) { updates.push('color = ?'); values.push(color); }
   if (sort_order !== undefined) { updates.push('sort_order = ?'); values.push(sort_order); }
 
   if (updates.length === 0) {

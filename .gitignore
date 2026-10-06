@@ -1,5 +1,7 @@
 node_modules/
-data/menuvo.db
+server/data/
+server/data-backup-restore-*/
+server/uploads/*
 .env
 *.log
 uploads/*

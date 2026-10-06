@@ -189,26 +189,45 @@ function ZoneContent({ zone, items }) {
           </div>
         ) : (
           <ul className="space-y-[0.18em]">
-            {rows.slice(0, 12).map(item => (
-              <li key={item.id} className="flex items-baseline gap-2">
-                <span className={`truncate ${item.availability === 'sold_out' ? 'line-through opacity-60' : ''}`}>
-                  {item.name}
-                  {item.availability === 'sold_out' && (
-                    <span className="ml-1.5 text-[0.5em] font-bold tracking-wider bg-red-500/80 text-white px-1.5 py-0.5 rounded align-middle">
-                      SOLD OUT
+            {rows.slice(0, 12).map(item => {
+              const soldOut = item.availability === 'sold_out'
+              const badge = soldOut && (
+                <span className="ml-1.5 text-[0.5em] font-bold tracking-wider bg-red-500/80 text-white px-1.5 py-0.5 rounded align-middle">
+                  SOLD OUT
+                </span>
+              )
+              // Per-item typography overrides (nullable = inherit zone styles)
+              const itemStyle = {
+                fontFamily: item.font_family || undefined,
+                fontSize: item.font_size ? `${item.font_size}px` : undefined,
+                fontWeight: item.font_weight || undefined,
+                color: item.color || undefined,
+              }
+              const hasItemStyle = Object.values(itemStyle).some(v => v !== undefined)
+              return (
+                <li key={item.id} className="flex items-baseline gap-2">
+                  {item.name ? (
+                    <span className={`truncate ${soldOut ? 'line-through opacity-60' : ''}`} style={hasItemStyle ? itemStyle : undefined}>
+                      {item.name}
+                      {badge}
+                    </span>
+                  ) : soldOut ? (
+                    <span className="truncate" style={hasItemStyle ? itemStyle : undefined}>{badge}</span>
+                  ) : null}
+                  {typeof item.price === 'number' && (
+                    <span
+                      className="ml-auto shrink-0"
+                      style={{
+                        ...(hasItemStyle ? itemStyle : {}),
+                        ...(zone.is_price ? { backgroundColor: 'rgba(34,197,94,0.35)', padding: '0.05em 0.35em', borderRadius: '0.25em' } : {}),
+                      }}
+                    >
+                      ${Number(item.price).toFixed(2)}
                     </span>
                   )}
-                </span>
-                {typeof item.price === 'number' && (
-                  <span
-                    className="ml-auto shrink-0"
-                    style={zone.is_price ? { backgroundColor: 'rgba(34,197,94,0.35)', padding: '0.05em 0.35em', borderRadius: '0.25em' } : undefined}
-                  >
-                    ${Number(item.price).toFixed(2)}
-                  </span>
-                )}
-              </li>
-            ))}
+                </li>
+              )
+            })}
           </ul>
         )}
       </div>
