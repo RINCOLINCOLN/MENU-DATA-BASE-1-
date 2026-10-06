@@ -90,7 +90,38 @@ function initSchema(db) {
       days_of_week TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS snapshots (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      restaurant_id TEXT REFERENCES restaurants(id),
+      original_path TEXT NOT NULL,
+      mockup_path TEXT,
+      status TEXT NOT NULL DEFAULT 'processing',
+      menu_json TEXT,
+      template_id TEXT REFERENCES templates(id),
+      screen_id TEXT REFERENCES screens(id),
+      price_stripped INTEGER NOT NULL DEFAULT 0,
+      needs_redesign INTEGER NOT NULL DEFAULT 0,
+      error_message TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
   `);
+  // Migration: payment-hold groundwork — on_hold flags + payment_status.
+  // Default false/'active' so existing data is unaffected until billing wires hold.
+  const restCols = db.prepare('PRAGMA table_info(restaurants)').all();
+  const restaurantMigrations = [
+    ['on_hold', 'ALTER TABLE restaurants ADD COLUMN on_hold INTEGER NOT NULL DEFAULT 0'],
+    ['payment_status', 'ALTER TABLE restaurants ADD COLUMN payment_status TEXT NOT NULL DEFAULT \'active\''],
+  ];
+  for (const [col, ddl] of restaurantMigrations) {
+    if (!restCols.some(c => c.name === col)) db.exec(ddl);
+  }
+  const screenCols2 = db.prepare('PRAGMA table_info(screens)').all();
+  if (!screenCols2.some(c => c.name === 'on_hold')) {
+    db.exec('ALTER TABLE screens ADD COLUMN on_hold INTEGER NOT NULL DEFAULT 0');
+  }
 
   // Migration: add sort_order to screens for existing databases
   const screenCols = db.prepare('PRAGMA table_info(screens)').all();
