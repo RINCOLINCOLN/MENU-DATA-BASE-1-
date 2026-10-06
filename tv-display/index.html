@@ -20,9 +20,9 @@
     <div class="spinner"></div>
   </div>
 
-  <!-- Background video layer: spans the full viewport and shows the FULL
-       frame via object-fit: contain (portrait videos pillarbox on landscape
-       screens; matching-aspect videos fill edge-to-edge) -->
+  <!-- Background video layer: spans the full viewport. app.js sets object-fit
+       per orientation — portrait screens use contain (full frame, no crop),
+       landscape screens keep cover (full-bleed) -->
   <video id="menu-video"
          playsinline
          webkit-playsinline

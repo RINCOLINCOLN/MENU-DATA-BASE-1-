@@ -280,13 +280,33 @@
   }
 
   /** Read the screen/template orientation out of a screen-data payload. */
-  function resolveBoard(data) {
+  function resolveOrientation(data) {
     if (!data) return null;
     const orientation =
       (data.screen && data.screen.orientation) ||
       (data.template && data.template.orientation) ||
       data.orientation;
+    return orientation ? String(orientation).toLowerCase() : null;
+  }
+
+  function resolveBoard(data) {
+    const orientation = resolveOrientation(data);
     return orientation ? boardForOrientation(orientation) : null;
+  }
+
+  /**
+   * Set the video's object-fit from the screen orientation so the background
+   * never crops its content:
+   *   - portrait screens  -> "contain": full frame, pillarbox/letterbox on the
+   *     mismatch axis (fixes the owner's "half the menu" complaint).
+   *   - landscape screens -> "cover": full-bleed, unchanged from before.
+   * The video element spans the whole viewport, so "contain" centers it on the
+   * exact same rectangle the #app safe area occupies — text zones stay aligned.
+   */
+  function applyVideoFit(data) {
+    if (!els.video) return;
+    const orientation = resolveOrientation(data);
+    els.video.style.objectFit = (orientation === 'portrait') ? 'contain' : 'cover';
   }
 
   /** Apply the board dimensions to the viewport fitter and the layout renderer. */
@@ -311,6 +331,10 @@
     // apply it BEFORE rendering, so both the layout renderer (px→% conversion,
     // default canvas) and the viewport fitter use the correct design surface.
     applyBoard(resolveBoard(data));
+
+    // Portrait screens must never crop the video (contain); landscape keeps
+    // full-bleed (cover).
+    applyVideoFit(data);
 
     // Update template config
     state.templateConfig = data.template || state.templateConfig;
