@@ -15,7 +15,7 @@
 // must never force a large menu-board video to re-download, so those caches
 // survive version bumps. The activate cleanup only deletes stale *-static*
 // and legacy menuloop-* caches — never these stable names.
-const CACHE_VERSION = 'lumenu-v4';
+const CACHE_VERSION = 'lumenu-v6';
 const STATIC_CACHE = `${CACHE_VERSION}-static`; // versioned → app shell freshness
 const VIDEO_CACHE = 'lumenu-video';             // stable → keep cached video across updates
 const IMAGE_CACHE = 'lumenu-images';            // stable → layout backgrounds survive

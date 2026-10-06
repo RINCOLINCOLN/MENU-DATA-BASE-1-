@@ -20,8 +20,9 @@
     <div class="spinner"></div>
   </div>
 
-  <!-- Full-bleed video layer: covers the ENTIRE viewport edge-to-edge
-       (object-fit: cover, cropping as needed) — no letterbox/pillarbox bars -->
+  <!-- Background video layer: spans the full viewport. app.js sets object-fit
+       per orientation — portrait screens use contain (full frame, no crop),
+       landscape screens keep cover (full-bleed) -->
   <video id="menu-video"
          playsinline
          webkit-playsinline
@@ -36,8 +37,8 @@
   <!-- Full-bleed layout background (image/color backgrounds from a layout) -->
   <div id="layout-background" class="hidden"></div>
 
-  <!-- 16:9 safe-area canvas (centered + scaled): holds text overlays so they
-       never get pushed off-screen on non-16:9 displays -->
+  <!-- Safe-area canvas (centered + scaled): holds text overlays so they
+       always align with the contained background video -->
   <div id="app">
 
     <!-- Text Overlay Layer -->

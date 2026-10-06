@@ -40,8 +40,13 @@ html, body {
   z-index: 10;
 }
 
-/* Full-bleed video: fill the entire viewport edge-to-edge (cover crops as
- * needed — no letterbox/pillarbox bars), the core of the "cover" mode. */
+/* Background video: spans the whole viewport (position: fixed, 100vw×100vh).
+ * object-fit is driven per screen orientation by app.js (applyVideoFit):
+ *   - portrait screens -> "contain": full frame, pillarbox/letterbox only on
+ *     the mismatch axis, centered on the exact #app safe-area rectangle.
+ *   - landscape screens -> "cover": full-bleed, unchanged from before.
+ * The CSS default is "cover" so landscape boards render correctly before
+ * screen data loads. */
 #menu-video {
   position: fixed;
   top: 0;
@@ -449,8 +454,9 @@ html, body {
   background: #4a5568;
 }
 /* Responsive Scaling ------------------------------------------------------ */
-/* The video bleeds edge-to-edge (object-fit: cover, cropping as needed). The
- * SAFE AREA (#app) is a fixed design canvas (1920×1080 landscape / 1080×1920
- * portrait) that handleResize() in app.js scales and centers on the viewport,
- * so text overlays stay inside the safe area on ANY aspect ratio (laptop,
- * tablet, TV, portrait). */
+/* The SAFE AREA (#app) is a fixed design canvas (1920×1080 landscape /
+ * 1080×1920 portrait) that handleResize() in app.js scales and centers on the
+ * viewport. Portrait screens render their video with object-fit: contain
+ * (full frame, pillarbox/letterbox on the mismatch axis) centered on the same
+ * rectangle, so text overlays align with the video on ANY aspect ratio
+ * (laptop, tablet, TV, portrait). Landscape screens stay full-bleed (cover). */
