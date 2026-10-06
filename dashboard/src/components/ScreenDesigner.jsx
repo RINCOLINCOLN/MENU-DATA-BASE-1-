@@ -239,6 +239,11 @@ export default function ScreenDesigner() {
   const [templateId, setTemplateId] = useState('')      // working background template
   const [selectedId, setSelectedId] = useState(null)
   const [gesture, setGesture] = useState(null)          // {mode:'move'|'resize', id, startX, startY, rect}
+  // Drag-to-pan on the empty board background (mouse/trackpad). panStartRef
+  // holds the gesture snapshot; panning toggles the grab cursor. Touch scrolls
+  // natively (the canvas deliberately has no touch-none), so this is mouse-only.
+  const [panning, setPanning] = useState(false)
+  const panStartRef = useRef(null)   // { pointerId, startX, startY, scrollLeft, scrollTop }
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   // Zoom / canvas sizing. The canvas is a FIXED-SIZE design surface (1920×1080
@@ -444,8 +449,54 @@ export default function ScreenDesigner() {
   const zoomFit = () => setZoom(1)
   const zoomPct = Math.round(zoom * 100)
 
-  /* Deselect when tapping empty board background */
-  const deselectCanvas = (e) => { if (e.target === e.currentTarget) setSelectedId(null) }
+  /* Deselect when tapping empty board background, and start drag-to-pan.
+     Zones/handles stopPropagation in startGesture, so this only fires for the
+     bare background — and only for mouse pointers (touch scrolls natively). */
+  const onCanvasPointerDown = (e) => {
+    setSelectedId(null)
+    if (e.pointerType !== 'mouse') return
+    const pan = panRef.current
+    if (!pan) return
+    panStartRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      scrollLeft: pan.scrollLeft,
+      scrollTop: pan.scrollTop,
+    }
+    setPanning(true)
+    try { e.currentTarget.setPointerCapture?.(e.pointerId) } catch { /* noop */ }
+    e.preventDefault()
+  }
+
+  /* While dragging the background, move the pane by the pointer delta
+     ("grab the board and pull it"), per axis. scrollLeft/Top are clamped by the
+     browser, so this cannot overshoot the board's edges. Works at any zoom
+     because the layout box is already sized designW/H × totalScale. */
+  useEffect(() => {
+    const onPanMove = (e) => {
+      const p = panStartRef.current
+      if (!p || e.pointerId !== p.pointerId) return
+      const pan = panRef.current
+      if (!pan) return
+      pan.scrollLeft = p.scrollLeft - (e.clientX - p.startX)
+      pan.scrollTop = p.scrollTop - (e.clientY - p.startY)
+    }
+    const endPan = (e) => {
+      if (panStartRef.current && e.pointerId === panStartRef.current.pointerId) {
+        panStartRef.current = null
+        setPanning(false)
+      }
+    }
+    window.addEventListener('pointermove', onPanMove)
+    window.addEventListener('pointerup', endPan)
+    window.addEventListener('pointercancel', endPan)
+    return () => {
+      window.removeEventListener('pointermove', onPanMove)
+      window.removeEventListener('pointerup', endPan)
+      window.removeEventListener('pointercancel', endPan)
+    }
+  }, [])
 
   /* ── save ── */
   const handleSave = async () => {
@@ -560,8 +611,8 @@ export default function ScreenDesigner() {
                     deltas stay correct at every zoom. */}
                 <div
                   ref={canvasRef}
-                  className="relative select-none touch-none"
-                  onPointerDown={deselectCanvas}
+                  className={`relative select-none ${zoom > 1 ? (panning ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
+                  onPointerDown={onCanvasPointerDown}
                   style={{
                     width: designW,
                     height: designH,
