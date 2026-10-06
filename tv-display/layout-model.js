@@ -455,15 +455,31 @@
       var row = document.createElement('div');
       row.className = 'menu-row' + (item.availability === 'sold_out' ? ' sold-out-row' : '');
 
-      var nameSpan = document.createElement('span');
-      nameSpan.className = 'menu-row-name';
-      nameSpan.textContent = item.name || '';
-      row.appendChild(nameSpan);
+      // Per-item typography overrides (nullable = inherit the zone's styles)
+      var itemStyle = {};
+      if (item.font_family) itemStyle.fontFamily = item.font_family;
+      if (item.font_size) itemStyle.fontSize = Number(item.font_size) + 'px';
+      if (item.font_weight) itemStyle.fontWeight = item.font_weight;
+      if (item.color) itemStyle.color = item.color;
+      var hasItemStyle = Object.keys(itemStyle).length > 0;
+      // Name-less items are price-only overlays: skip the empty name span so
+      // the price (or SOLD OUT badge) sits cleanly in the row.
+      if (item.name) {
+        var nameSpan = document.createElement('span');
+        nameSpan.className = 'menu-row-name';
+        nameSpan.textContent = item.name;
+        if (hasItemStyle) Object.assign(nameSpan.style, itemStyle);
+        row.appendChild(nameSpan);
+      } else {
+        var nameSpan = null;
+      }
+
 
       if (el.show_price !== false && item.availability !== 'sold_out' && item.price != null) {
         var priceSpan = document.createElement('span');
         priceSpan.className = 'menu-row-price';
         priceSpan.textContent = formatPrice(item.price);
+        if (hasItemStyle) Object.assign(priceSpan.style, itemStyle);
         row.appendChild(priceSpan);
       }
 

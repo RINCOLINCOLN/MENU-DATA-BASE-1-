@@ -10,13 +10,13 @@ const DEFAULT_ZONE = {
   is_price: false, category_filter: '', item_ids: [],
 }
 
-const FONT_FAMILIES = [
+export const FONT_FAMILIES = [
   'Inter', 'Roboto', 'Open Sans', 'Lato', 'Montserrat',
   'Playfair Display', 'Oswald', 'Poppins', 'Raleway', 'Merriweather',
   'Ubuntu', 'Lobster', 'Bebas Neue', 'Pacifico', 'Dancing Script',
 ]
 
-const TEXT_COLORS = [
+export const TEXT_COLORS = [
   { label: 'White', color: '#ffffff' },
   { label: 'Black', color: '#000000' },
   { label: 'Warm Gold', color: '#D4A574' },
@@ -44,7 +44,7 @@ const BG_COLORS = [
   { label: 'Black 60%', color: '#1a1a1a99' },
 ]
 
-const FONT_SIZES = [14, 16, 18, 20, 24, 28, 32, 36, 42, 48, 56, 64, 72]
+export const FONT_SIZES = [14, 16, 18, 20, 24, 28, 32, 36, 42, 48, 56, 64, 72]
 const MIN_SIZES = [10, 12, 14, 16, 18, 20, 24, 28]
 const MAX_SIZES = [48, 56, 64, 72, 84, 96, 120, 144]
 const ALIGNMENTS = ['left', 'center', 'right']
