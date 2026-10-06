@@ -244,6 +244,14 @@ export default function ScreenDesigner() {
   // natively (the canvas deliberately has no touch-none), so this is mouse-only.
   const [panning, setPanning] = useState(false)
   const panStartRef = useRef(null)   // { pointerId, startX, startY, scrollLeft, scrollTop }
+  // Tap-to-place: while Place mode is on, a quick tap on the board background
+  // drops a new text zone centred on the tap. tapRef tracks the press so a drag
+  // is told apart from a tap; suppressMouseUntilRef swallows the compatibility
+  // mouse events some browsers fire right after a touch tap (double-placement).
+  const [placeMode, setPlaceMode] = useState(false)
+  const placeModeRef = useRef(false)
+  const tapRef = useRef(null)          // { pointerId, startX, startY, moved }
+  const suppressMouseUntilRef = useRef(0)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   // Zoom / canvas sizing. The canvas is a FIXED-SIZE design surface (1920×1080
@@ -302,8 +310,53 @@ export default function ScreenDesigner() {
     setZones(prev => prev.map(z => (z.id === id ? { ...z, ...patch } : z)))
   }, [])
 
+  /* Board-% centre of the currently visible pane (accounts for zoom + scroll).
+     The pane shows a window of the board; its visible centre maps to board % by
+     intersecting the pane rect with the (scaled) canvas rect. Falls back to the
+     board centre when the refs aren't laid out yet. */
+  const visibleViewportCenterPct = useCallback(() => {
+    const pan = panRef.current
+    const canvas = canvasRef.current
+    if (!pan || !canvas) return { x: 50, y: 50 }
+    const pr = pan.getBoundingClientRect()
+    const cr = canvas.getBoundingClientRect()
+    if (cr.width <= 0 || cr.height <= 0) return { x: 50, y: 50 }
+    const vx0 = Math.max(pr.left, cr.left)
+    const vx1 = Math.min(pr.right, cr.right)
+    const vy0 = Math.max(pr.top, cr.top)
+    const vy1 = Math.min(pr.bottom, cr.bottom)
+    if (vx1 <= vx0 || vy1 <= vy0) return { x: 50, y: 50 }
+    return {
+      x: (((vx0 + vx1) / 2 - cr.left) / cr.width) * 100,
+      y: (((vy0 + vy1) / 2 - cr.top) / cr.height) * 100,
+    }
+  }, [])
+
+  /* New text zone centred on a viewport tap point (client px → board %), then
+     selected. Same rect math startGesture uses, so it is correct at any zoom;
+     taps outside the board (pane margins at Fit) are ignored. */
+  const placeZoneAt = useCallback((clientX, clientY) => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const cr = canvas.getBoundingClientRect()
+    if (cr.width <= 0 || cr.height <= 0) return
+    const zone = defaultZone('text', 0, orientation)
+    const w = zone.width, h = zone.height
+    const xp = ((clientX - cr.left) / cr.width) * 100
+    const yp = ((clientY - cr.top) / cr.height) * 100
+    if (xp < 0 || xp > 100 || yp < 0 || yp > 100) return
+    setZones(prev => [...prev, { ...zone, x: clamp(xp - w / 2, 0, 100 - w), y: clamp(yp - h / 2, 0, 100 - h) }])
+    setSelectedId(zone.id)
+  }, [orientation])
+
+  /* Add a zone from the side panel: no more cascade stacking — the new zone
+     lands at the centre of the visible pane (where the owner is looking right
+     now) and is selected immediately, ready to drag or type into. */
   const addZone = (type) => {
     const zone = defaultZone(type, zones.length, orientation)
+    const c = visibleViewportCenterPct()
+    zone.x = clamp(c.x - zone.width / 2, 0, 100 - zone.width)
+    zone.y = clamp(c.y - zone.height / 2, 0, 100 - zone.height)
     setZones(prev => [...prev, zone])
     setSelectedId(zone.id)
   }
@@ -448,12 +501,23 @@ export default function ScreenDesigner() {
   const zoomOut = () => setZoom(z => +(Math.max(0.35, z / 1.25)).toFixed(2))
   const zoomFit = () => setZoom(1)
   const zoomPct = Math.round(zoom * 100)
+  const togglePlaceMode = () => {
+    const next = !placeModeRef.current
+    placeModeRef.current = next
+    setPlaceMode(next)
+  }
 
-  /* Deselect when tapping empty board background, and start drag-to-pan.
-     Zones/handles stopPropagation in startGesture, so this only fires for the
-     bare background — and only for mouse pointers (touch scrolls natively). */
+  /* Deselect when tapping empty board background, start drag-to-pan (mouse),
+     and record a tap candidate for ALL pointer types (tap-to-place in Place
+     mode). Zones/handles stopPropagation in startGesture, so this only fires
+     for the bare background — and only mouse pointers start a pan: touch
+     scrolls natively. */
   const onCanvasPointerDown = (e) => {
+    // Swallow compatibility mouse events some browsers fire right after a
+    // touch tap, so a touch tap can't trigger a second placement.
+    if (e.pointerType === 'mouse' && Date.now() < suppressMouseUntilRef.current) return
     setSelectedId(null)
+    tapRef.current = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, moved: false }
     if (e.pointerType !== 'mouse') return
     const pan = panRef.current
     if (!pan) return
@@ -472,9 +536,17 @@ export default function ScreenDesigner() {
   /* While dragging the background, move the pane by the pointer delta
      ("grab the board and pull it"), per axis. scrollLeft/Top are clamped by the
      browser, so this cannot overshoot the board's edges. Works at any zoom
-     because the layout box is already sized designW/H × totalScale. */
+     because the layout box is already sized designW/H × totalScale.
+     A press that ends with almost no movement is a TAP: in Place mode it drops
+     a new text zone at that spot (board-% coords, centred on the pointer). */
   useEffect(() => {
-    const onPanMove = (e) => {
+    const TAP_MOVE_PX = 8
+    const onMove = (e) => {
+      const t = tapRef.current
+      if (t && e.pointerId === t.pointerId && !t.moved &&
+          (Math.abs(e.clientX - t.startX) > TAP_MOVE_PX || Math.abs(e.clientY - t.startY) > TAP_MOVE_PX)) {
+        t.moved = true
+      }
       const p = panStartRef.current
       if (!p || e.pointerId !== p.pointerId) return
       const pan = panRef.current
@@ -482,20 +554,31 @@ export default function ScreenDesigner() {
       pan.scrollLeft = p.scrollLeft - (e.clientX - p.startX)
       pan.scrollTop = p.scrollTop - (e.clientY - p.startY)
     }
-    const endPan = (e) => {
+    const endPress = (e) => {
+      const t = tapRef.current
+      if (t && e.pointerId === t.pointerId) {
+        tapRef.current = null
+        if (!t.moved && placeModeRef.current) {
+          // Touch taps can be followed by compatibility mouse events: ignore
+          // them for a short window so only one zone is placed.
+          if (e.pointerType === 'touch') suppressMouseUntilRef.current = Date.now() + 600
+          placeZoneAt(e.clientX, e.clientY)
+        }
+      }
       if (panStartRef.current && e.pointerId === panStartRef.current.pointerId) {
         panStartRef.current = null
         setPanning(false)
       }
     }
-    window.addEventListener('pointermove', onPanMove)
-    window.addEventListener('pointerup', endPan)
-    window.addEventListener('pointercancel', endPan)
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', endPress)
+    window.addEventListener('pointercancel', endPress)
     return () => {
-      window.removeEventListener('pointermove', onPanMove)
-      window.removeEventListener('pointerup', endPan)
-      window.removeEventListener('pointercancel', endPan)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', endPress)
+      window.removeEventListener('pointercancel', endPress)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   /* ── save ── */
@@ -596,6 +679,13 @@ export default function ScreenDesigner() {
             </button>
             <button onClick={zoomIn} title="Zoom in" aria-label="Zoom in"
               className="w-9 h-9 flex items-center justify-center rounded-lg text-brand-muted hover:text-white hover:bg-white/10 text-lg leading-none touch-manipulation">＋</button>
+            <button onClick={togglePlaceMode}
+              title={placeMode ? 'Tap-to-place ON — tap the board to drop a text zone there. Tap again to turn off.' : 'Tap-to-place: tap the board where you want a text zone to appear. Tap again to turn off.'}
+              aria-label="Toggle tap-to-place"
+              aria-pressed={placeMode}
+              className={`h-9 px-2.5 flex items-center justify-center rounded-lg text-[11px] font-semibold touch-manipulation border transition-colors ${placeMode ? 'bg-amber-400/90 text-black border-amber-300' : 'text-brand-muted hover:text-white hover:bg-white/10 border-transparent'}`}>
+              {placeMode ? '⦿ TAP-ON' : '✚ TAP'}
+            </button>
           </div>
 
           {/* Scrollable pane (native pan when zoomed in) */}
@@ -611,7 +701,7 @@ export default function ScreenDesigner() {
                     deltas stay correct at every zoom. */}
                 <div
                   ref={canvasRef}
-                  className={`relative select-none ${zoom > 1 ? (panning ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
+                  className={`relative select-none ${placeMode ? 'cursor-crosshair' : zoom > 1 ? (panning ? 'cursor-grabbing' : 'cursor-grab') : ''}`}
                   onPointerDown={onCanvasPointerDown}
                   style={{
                     width: designW,
