@@ -154,6 +154,22 @@ html, body {
   white-space: nowrap;
 }
 
+/* Snapshot-mockup price placement (from OCR heuristics, optional zone knobs):
+   right_column pushes prices to the right edge; leader renders a dotted
+   leader between name and price for dot-leader style menus. */
+.menu-row-rcol .menu-row-name {
+  flex: 1 1 0;
+}
+.menu-row-leader .menu-row-name {
+  flex: 1 1 0;
+  border-bottom: 2px dotted currentColor;
+  align-self: flex-end;
+  margin-right: 0.35em;
+}
+.menu-row-leader .menu-row-price {
+  margin-left: 0;
+}
+
 .menu-row-desc {
   font-size: 0.72em;
   opacity: 0.75;

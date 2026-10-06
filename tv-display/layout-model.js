@@ -454,6 +454,12 @@
     bound.forEach(function (item) {
       var row = document.createElement('div');
       row.className = 'menu-row' + (item.availability === 'sold_out' ? ' sold-out-row' : '');
+      // Snapshot-mockup price placement (optional zone knobs): 'right_column'
+      // pushes prices to the right edge (classic menu board); 'inline' with
+      // price_leader renders a dotted leader between name and price.
+      var pricePos = el.price_position;
+      if (pricePos === 'right_column') row.classList.add('menu-row-rcol');
+      if (pricePos === 'inline' && el.price_leader) row.classList.add('menu-row-leader');
 
       // Per-item typography overrides (nullable = inherit the zone's styles)
       var itemStyle = {};
@@ -480,6 +486,11 @@
         priceSpan.className = 'menu-row-price';
         priceSpan.textContent = formatPrice(item.price);
         if (hasItemStyle) Object.assign(priceSpan.style, itemStyle);
+        // Price glyph heuristics from the snapshot pipeline: font size as a
+        // ratio of the row font (em scales with the zone's auto-shrink) and
+        // weight matched to the original photo when prices looked bold.
+        if (el.price_font_ratio) priceSpan.style.fontSize = Number(el.price_font_ratio) + 'em';
+        if (el.price_font_weight) priceSpan.style.fontWeight = el.price_font_weight;
         row.appendChild(priceSpan);
       }
 
