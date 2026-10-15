@@ -109,7 +109,8 @@ export default function OnboardingWizard() {
             <RestaurantStep onNext={handleCreateRestaurant} loading={loading} onSkip={handleSkip} />
           )}
           {step === 1 && (
-            <ScreenStep onNext={handleCreateScreen} loading={loading} onSkip={handleSkip} />
+            <ScreenStep onNext={handleCreateScreen} loading={loading} onSkip={handleSkip}
+              onPhotoImport={() => navigate(`/snapshot?restaurant=${restaurantId}`)} />
           )}
           {step === 2 && (
             <ItemsStep items={items} onAdd={handleAddItem} loading={loading} onNext={() => setStep(3)} onSkip={handleSkip} />
@@ -153,7 +154,7 @@ function RestaurantStep({ onNext, loading, onSkip }) {
   )
 }
 
-function ScreenStep({ onNext, loading }) {
+function ScreenStep({ onNext, loading, onPhotoImport }) {
   const [name, setName] = useState('')
   const [orientation, setOrientation] = useState('landscape')
   const handleSubmit = (e) => { e.preventDefault(); if (name.trim()) onNext(name.trim(), orientation) }
@@ -183,6 +184,15 @@ function ScreenStep({ onNext, loading }) {
           {loading ? 'Creating...' : 'Create Screen'}
         </button>
       </form>
+      <div className="max-w-md mx-auto mt-6 pt-5 border-t border-brand-border/40 text-center">
+        <p className="text-xs text-brand-muted/70 mb-3">Already have a menu you love?</p>
+        <button onClick={onPhotoImport}
+          className="w-full btn-secondary flex items-center justify-center gap-2 py-3">
+          <span className="text-lg">📸</span>
+          <span>Rebuild it from a photo instead</span>
+        </button>
+        <p className="text-[10px] text-brand-muted/60 mt-2">Snapshot-to-digital — our AI reads your photo and rebuilds it with editable prices.</p>
+      </div>
     </div>
   )
 }

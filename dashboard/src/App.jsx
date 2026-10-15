@@ -12,6 +12,7 @@ import ScreenDetailPage from './pages/ScreenDetailPage'
 import ScreenDesigner from './components/ScreenDesigner'
 import SettingsPage from './pages/SettingsPage'
 import TemplatesPage from './pages/TemplatesPage'
+import SnapshotPage from './pages/SnapshotPage'
 import { getToken, setToken, clearToken } from './lib/token'
 
 function ProtectedRoute({ children }) {
@@ -62,6 +63,7 @@ export default function App() {
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
       <Route path="/onboarding" element={<ProtectedRoute><OnboardingWizard /></ProtectedRoute>} />
+      <Route path="/snapshot" element={<ProtectedRoute><SnapshotPage /></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><DashboardRoute /></ProtectedRoute>}>
         <Route index element={<DashboardHome />} />
         <Route path="screens" element={<ScreensPage />} />

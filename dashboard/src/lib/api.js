@@ -118,5 +118,30 @@ export const api = {
   },
   // Screen Data (for preview — uses slug public endpoint)
   getScreenData: (slug) => request('GET', `/screens/${slug}/data`),
+  // Snapshots ("Snapshot-to-digital" perk) — upload a menu photo, get an AI
+  // mockup board back. Contract is defined in server/routes/snapshots.js.
+  async uploadSnapshot(file, restaurantId = null) {
+    const formData = new FormData()
+    formData.append('photo', file)
+    if (restaurantId) formData.append('restaurant_id', restaurantId)
+    const headers = {}
+    const token = getToken()
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    let res
+    try {
+      res = await fetch(`${API_BASE}/snapshots`, { method: 'POST', headers, body: formData })
+    } catch (err) {
+      throw new Error('Cannot reach the Lumenu service. Check your connection and try again.')
+    }
+    const data = await parseResponse(res)
+    if (!res.ok) {
+      throw new Error(data?.error || data?.message || `Request failed: ${res.status}`)
+    }
+    return data // { snapshot_id, status: "processing" }
+  },
+  getSnapshot: (id) => request('GET', `/snapshots/${id}`),
+  getSnapshots: () => request('GET', '/snapshots'),
+  markSnapshotRedesign: (id) =>
+    request('PATCH', `/snapshots/${id}`, { needs_redesign: true }),
 }
 export default api

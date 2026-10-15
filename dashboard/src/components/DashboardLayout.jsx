@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 const navItems = [
   { to: '/dashboard', label: 'Home', icon: '📊', end: true },
   { to: '/dashboard/screens', label: 'Screens', icon: '🖥️', end: false },
+  { to: '/snapshot', label: 'Snapshot', icon: '📸', end: false },
   { to: '/dashboard/templates', label: 'Templates', icon: '🎬', end: false },
   { to: '/dashboard/settings', label: 'Settings', icon: '⚙️', end: false },
 ]
