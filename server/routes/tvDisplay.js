@@ -50,12 +50,18 @@ router.get('/:slug/data', (req, res) => {
 
     // Update last_sync_at (we'll store it in a simple way)
     // We'll add a last_sync tracking column approach in the response header
+    // Payment-hold groundwork: reflect the hold flag so the TV PWA can keep
+    // showing the last valid state instead of updating when billing is paused.
+    const restaurant = db.prepare('SELECT * FROM restaurants WHERE id = ?').get(screen.restaurant_id);
+    const onHold = !!(screen.on_hold || restaurant?.on_hold || restaurant?.payment_status === 'on_hold');
     res.json({
+      on_hold: onHold,
       screen: {
         id: screen.id,
         name: screen.name,
         orientation: screen.orientation,
-        slug: screen.unique_slug
+        slug: screen.unique_slug,
+        on_hold: onHold
       },
       template: template ? {
         id: template.id,

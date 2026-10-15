@@ -15,6 +15,7 @@ import templateRoutes from './routes/templates.js';
 import menuItemRoutes from './routes/menuItems.js';
 import scheduleRoutes from './routes/schedules.js';
 import tvDisplayRoutes from './routes/tvDisplay.js';
+import snapshotRoutes from './routes/snapshots.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -76,6 +77,7 @@ app.use('/api/screens', screenRoutes);
 app.use('/api', menuItemRoutes);   // routes are /screens/:id/menu-items -> /api/screens/:id/menu-items
 app.use('/api', scheduleRoutes);   // routes are /screens/:id/schedules -> /api/screens/:id/schedules
 app.use('/api/templates', templateRoutes);
+app.use('/api/snapshots', snapshotRoutes);
 
 // Fallback: serve the dashboard's index.html for client-side routing
 app.get('*', (req, res) => {
