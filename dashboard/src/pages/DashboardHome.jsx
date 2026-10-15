@@ -143,6 +143,20 @@ export default function DashboardHome() {
         </div>
       </div>
 
+      {/* Snapshot-to-digital banner */}
+      <div className="relative overflow-hidden rounded-xl border border-amber-400/25 bg-gradient-to-r from-brand-surface via-brand-surface to-[#2a1a12] px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-amber-400/10 blur-2xl" />
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="w-11 h-11 shrink-0 rounded-xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-xl">📸</div>
+          <div className="min-w-0">
+            <h3 className="font-heading font-semibold text-brand-text text-sm">Have a menu already?</h3>
+            <p className="text-xs text-brand-muted/80 mt-0.5">Snapshot it — our AI rebuilds it into a Lumenu board with every price editable from your phone.</p>
+          </div>
+        </div>
+        <button onClick={() => navigate('/snapshot')}
+          className="shrink-0 btn-primary text-sm whitespace-nowrap">Start with your menu</button>
+      </div>
+
       {/* Screen Health Table */}
       {allScreens.length > 0 && (
         <div className="bg-brand-surface rounded-xl shadow-sm border border-brand-border/40 overflow-hidden">
