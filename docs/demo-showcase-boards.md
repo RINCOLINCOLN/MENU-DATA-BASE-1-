@@ -30,3 +30,11 @@ The fresh-install seed now ships three image-backed sample boards for the trial/
 - **Rationale:** The vertical pasta-and-candle scene is intentionally intimate and rich. Its darker upper third gives the centered OLIVA masthead breathing room, while the menu stack preserves a strong portrait reading order from antipasti through dolci.
 
 All three backgrounds use `background.type: "image"`, `fit: "cover"`, and a dark `overlay_color` in the template's `config_json.layout`. The seed keeps its existing empty-database guard and does not mutate existing owner or snapshot data.
+
+## Review checklist
+
+- Fresh-install demo screens remain addressable at `brew-main-board`, `brew-bar-display`, and `trattoria-menu` so existing smoke checks keep working.
+- The two landscape assets are exact 1920×1080 JPEGs; the portrait asset is 1080×1920.
+- Run `npm run seed` once on a clean `server/data/` directory, then run it again to confirm the idempotent skip path.
+- Verify each `/api/screens/<slug>/data` response includes `template.config_json.layout.background` and the expected menu item count before opening the TV route.
+
