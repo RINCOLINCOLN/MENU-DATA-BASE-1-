@@ -1,5 +1,5 @@
 /**
- * E2E: Snapshot-to-digital backend + payment-hold groundwork.
+ * E2E: Snapshot-to-digital backend + payment-hold groundwork + OCR QUALITY.
  *
  * Run against a LIVE server (BASE_URL, default http://localhost:3000):
  *   cd server && node e2e/snapshot-flow.mjs
@@ -9,6 +9,12 @@
  *   GET  /api/snapshots/:id       → { status, original_url, mockup_url?, message?, menu_items?, template?, screen? }
  *   PATCH /api/snapshots/:id      → owner-redesign flag
  * Hold flag: /api/screens/:slug/data reflects restaurant/screen on_hold.
+ *
+ * OCR QUALITY GATE (owner's #1 complaint):
+ *   [8] THE owner's real café menu photo (regression fixture) — the pipeline
+ *       must return credible menu words/prices OR status 'failed' with a clear
+ *       retake message. NEVER status 'ready' with junk words/prices.
+ *   [9] a deliberately noisy/blurred photo → status 'failed' + retake message.
  */
 import fs from 'fs';
 import path from 'path';
@@ -18,7 +24,11 @@ import Database from 'better-sqlite3';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 const FIXTURE = path.join(__dirname, 'fixtures', 'menu-photo.png');
-const DB_PATH = path.join(__dirname, '..', 'data', 'menuvo.db');
+const OWNER_FIXTURE = path.join(__dirname, 'fixtures', 'owner-menu-photo.jpg');
+const NOISY_FIXTURE = path.join(__dirname, 'fixtures', 'noisy-blur.jpg');
+const DB_PATH = process.env.E2E_DB_PATH || path.join(__dirname, '..', 'data', 'menuvo.db');
+
+const RETAKE_MESSAGE = "We couldn't read that menu clearly. Try a straighter, closer photo in good light.";
 
 let passed = 0;
 let failed = 0;
@@ -33,6 +43,24 @@ const api = async (pathname, opts = {}) => {
   try { body = await res.json(); } catch { body = null; }
   return { status: res.status, body };
 };
+
+// ---------------------------------------------------------------------------
+// [0] helpers
+// ---------------------------------------------------------------------------
+const alphaCount = (s) => (String(s).match(/[A-Za-z]/g) || []).length;
+// Independent plausibility re-check (not importing lib code — proves the
+// invariant from the API surface): names need letters, prices must be sane.
+function plausibleItems(menuItems) {
+  if (!Array.isArray(menuItems) || menuItems.length === 0) return { ok: false, why: 'no items' };
+  const badNames = menuItems.filter((i) => alphaCount(i.name) < 3 || alphaCount(i.name) / String(i.name).length < 0.5);
+  const badPrices = menuItems.filter((i) => {
+    const p = Number(i.price);
+    return !Number.isFinite(p) || p < 0.5 || p > 500;
+  });
+  if (badNames.length > 0) return { ok: false, why: `bad names: ${badNames.map((i) => i.name).join(', ')}` };
+  if (badPrices.length > 0) return { ok: false, why: `bad prices: ${badPrices.map((i) => i.price).join(', ')}` };
+  return { ok: true };
+}
 
 // 1. Register a throwaway user + restaurant
 const email = `snap-e2e-${Date.now()}@test.app`;
@@ -56,7 +84,7 @@ console.log('\n[2] auth guards');
 const unauth = await api('/api/snapshots', { method: 'POST' });
 assert(unauth.status === 401, `POST without token → 401 (got ${unauth.status})`);
 
-// 3. POST snapshot with the menu photo
+// 3. POST snapshot with the (synthetic) menu photo
 console.log('\n[3] upload + pipeline');
 assert(fs.existsSync(FIXTURE), `fixture exists (${FIXTURE})`);
 const form = new FormData();
@@ -89,6 +117,9 @@ assert(snap.template && snap.template.id, 'template generated with zones');
 assert(snap.template.text_zones.some((z) => z.id === 'snapshot-menu'), 'menu zone in template config');
 assert(snap.screen && snap.screen.slug, 'screen created for the restaurant');
 
+const q = plausibleItems(snap.menu_items);
+assert(q.ok, `every extracted item name/price is credible (${q.why})`);
+
 // Price-placement + glyph heuristics (owner requirement): fixture prices form
 // a right-aligned column and the price font ≈ item-name font.
 const menuZone = snap.template.text_zones.find((z) => z.id === 'snapshot-menu');
@@ -106,7 +137,6 @@ assert(tv.status === 200 && tv.body.on_hold === false, `TV data: on_hold false b
 assert(tv.body.menu_items.length === snap.menu_items.length, 'TV data returns the extracted menu items');
 assert(tv.body.menu_items.every((i) => i.price !== null), 'items have editable prices (not baked)');
 
-// Flip the restaurant hold flag directly (billing wires this later) and verify the TV reflects it.
 const rawDb = new Database(DB_PATH);
 rawDb.prepare('UPDATE restaurants SET on_hold = 1 WHERE id = ?').run(restaurantId);
 const tvHold = await api(`/api/screens/${snap.screen.slug}/data`);
@@ -144,6 +174,69 @@ const badForm = new FormData();
 badForm.append('photo', garbage, 'note.txt');
 const bad = await api('/api/snapshots', { method: 'POST', headers: H, body: badForm });
 assert(bad.status === 400, `non-image upload rejected → 400 (got ${bad.status})`);
+
+// ---------------------------------------------------------------------------
+// [8] THE regression fixture: the owner's REAL café menu photo.
+// Accepted outcomes ONLY: credible items+prices (ready) OR failed with the
+// clear retake message. status 'ready' with garbage = suite failure.
+// ---------------------------------------------------------------------------
+console.log('\n[8] owner real-menu photo (quality gate)');
+assert(fs.existsSync(OWNER_FIXTURE), `owner fixture exists (${OWNER_FIXTURE})`);
+const oForm = new FormData();
+oForm.append('photo', new Blob([fs.readFileSync(OWNER_FIXTURE)], { type: 'image/jpeg' }), 'owner-menu-photo.jpg');
+oForm.append('restaurant_id', restaurantId);
+const oUp = await api('/api/snapshots', { method: 'POST', headers: H, body: oForm });
+assert(oUp.status === 201, `POST owner photo → 201 (got ${oUp.status})`);
+const oSid = oUp.body.snapshot_id;
+
+let oSnap = null;
+for (let i = 0; i < 90; i += 1) {
+  const r = await api(`/api/snapshots/${oSid}`, { headers: H });
+  if (r.status === 200 && r.body.status !== 'processing') { oSnap = r.body; break; }
+  await new Promise((res) => setTimeout(res, 2000));
+}
+assert(oSnap !== null, 'owner pipeline finished in 180s');
+if (oSnap) {
+  assert(oSnap.status === 'ready' || oSnap.status === 'failed', `owner photo → ready|failed (got ${oSnap.status}))`);
+  if (oSnap.status === 'ready') {
+    console.log('   (owner photo read OK — extracting items)');
+    const oq = plausibleItems(oSnap.menu_items);
+    assert(oq.ok, `owner 'ready' items are credible (${oq.why})`);
+    assert(oSnap.menu_items.length >= 3, `owner 'ready' has ≥3 items (${oSnap.menu_items?.length})`);
+    console.log('   items:', oSnap.menu_items?.slice(0, 12).map((i) => `${i.name}=$${i.price}`).join(' | '));
+  } else {
+    assert(typeof oSnap.message === 'string' && oSnap.message.length > 0, 'failed status carries a user-facing message');
+    console.log(`   message: ${oSnap.message}`);
+  }
+  assert(!(oSnap.status === 'ready' && !plausibleItems(oSnap.menu_items).ok),
+    'INVARIANT: never "ready" with garbage words/prices');
+}
+
+// ---------------------------------------------------------------------------
+// [9] quality gate: deliberately noisy/blurred photo must fail with retake msg
+// ---------------------------------------------------------------------------
+console.log('\n[9] noisy/blurred photo → retake message');
+assert(fs.existsSync(NOISY_FIXTURE), `noisy fixture exists (${NOISY_FIXTURE})`);
+const nForm = new FormData();
+nForm.append('photo', new Blob([fs.readFileSync(NOISY_FIXTURE)], { type: 'image/jpeg' }), 'noisy-blur.jpg');
+nForm.append('restaurant_id', restaurantId);
+const nUp = await api('/api/snapshots', { method: 'POST', headers: H, body: nForm });
+assert(nUp.status === 201, `POST noisy photo → 201 (got ${nUp.status})`);
+const nSid = nUp.body.snapshot_id;
+
+let nSnap = null;
+for (let i = 0; i < 90; i += 1) {
+  const r = await api(`/api/snapshots/${nSid}`, { headers: H });
+  if (r.status === 200 && r.body.status !== 'processing') { nSnap = r.body; break; }
+  await new Promise((res) => setTimeout(res, 2000));
+}
+assert(nSnap !== null, 'noisy pipeline finished in 180s');
+if (nSnap) {
+  assert(nSnap.status === 'failed', `noisy photo → failed (got ${nSnap.status})`);
+  assert(typeof nSnap.message === 'string' && nSnap.message.includes('straighter'),
+    `retake message present (got ${nSnap.message})`);
+  console.log(`   message: ${nSnap.message}`);
+}
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

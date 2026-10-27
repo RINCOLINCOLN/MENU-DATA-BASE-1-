@@ -4,7 +4,9 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.join(__dirname, '..', 'data', 'menuvo.db');
+// DB_PATH env override lets tests/e2e run against a throwaway DB copy instead
+// of the live database (owner data stays untouched during test runs).
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data', 'menuvo.db');
 
 // Ensure data directory exists
 const dataDir = path.dirname(DB_PATH);
