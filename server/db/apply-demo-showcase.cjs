@@ -1,37 +1,36 @@
 #!/usr/bin/env node
 /**
- * SAFE one-off migration — apply the PR #40 cinematic showcase boards to a
- * NON-fresh (already populated) Lumenu database.
+ * SAFE migration v2 — apply the market-validated showcase boards (brand
+ * logos, fit-to-TV layouts, corrected prices, animation spec) to a
+ * NON-fresh Lumenu database.
  *
- * What it does (demo data ONLY — never touches owner rows):
- *   1. Rewrites the two legacy demo templates in place (their IDs are kept so
- *      nothing referencing them breaks):
- *        - Classic Split Layout   c0d5152e…  → "Ember & Oak — Morning Roast" (landscape, ember-coffee.jpg)
- *        - Full Screen Centered   04a3709b…  → "Oliva — Trattoria Notturna"  (portrait, oliva-trattoria.jpg)
- *   2. Re-points the three demo screens to the new boards + menus:
- *        - brew-main-board  → Ember & Oak (landscape)
- *        - brew-bar-display → Ember & Oak (landscape; was a portrait placeholder on the "test video" template)
- *        - trattoria-menu   → Oliva (portrait)
- *   3. Adds the NEW taquería showcase board (design's third board):
- *        - restaurant   "Sol y Sombra Taquería"   (demo user owner@menuvo.app)
- *        - template     "Sol y Sombra — Fire & Citrus" (landscape, sol-y-sombra.jpg)
- *        - screen       sol-y-sombra-main ("Sol y Sombra Main Board")
- *   4. Replaces menu_items + schedules for exactly those demo screens with the
- *      designer's content from server/db/seed.js (same categories/zones).
+ * What it changes (demo data ONLY — never touches owner rows):
+ *   1. Rewrites the demo templates' layouts in place:
+ *        - c0d5152e…  "Ember & Oak — Morning Roast" (landscape, ember-coffee.jpg)
+ *        - 04a3709b…  "Oliva — Trattoria Notturna"  (portrait, oliva-trattoria.jpg)
+ *        - "Sol y Sombra — Fire & Citrus" (landscape; found by name, created if missing)
+ *   2. Converges the demo screens to the intended showcase mapping (PR #41):
+ *        - brew-main-board  → Ember & Oak Main Menu   (Ember template + Ember restaurant)
+ *        - brew-bar-display → Ember & Oak Bar Display (Ember template + Ember restaurant)
+ *        - trattoria-menu   → Oliva Portrait Menu     (Oliva template + Oliva restaurant)
+ *        - sol-y-sombra-main → Sol y Sombra Main Board (created if missing)
+ *   3. Replaces menu_items + schedules for exactly those demo screens with the
+ *      corrected, market-validated content (single source: showcase-configs.cjs).
+ *   4. Sets logo_url on the Sol y Sombra and Ember & Oak restaurants when
+ *      empty; Oliva's existing logo_url is left untouched.
  *
  * All writes run inside ONE SQLite transaction (all-or-nothing).
  *
  * Guards:
- *   - Aborts unless the demo user, both templates and all three demo slugs exist.
- *   - Aborts unless the three demo screens still belong to the demo restaurants
- *     (Brew & Bean Café / Trattoria Bella Vita) and the board asset files are on disk.
- *   - Never writes to any row it does not target; `right-tv-luptitas` (owner) is
- *     read-only and its before/after config hash is printed as proof.
- *   - Idempotent: safe to re-run (UPDATEs converge; inserts are skipped when the
- *     taquería restaurant/template/screen already exist).
+ *   - Aborts unless the demo user exists and all three templates + demo slugs exist.
+ *   - Aborts unless the demo screens still belong to the three demo restaurants.
+ *   - Never writes to any row it does not target; the owner screen
+ *     `right-tv-luptitas` is read-only and its before/after config hash is
+ *     printed as proof.
+ *   - Idempotent: safe to re-run (UPDATEs converge; inserts are skipped).
  *
  * Usage (run from server/):
- *   node db/apply-demo-showcase.cjs --dry-run          # print the plan, write nothing
+ *   node db/apply-demo-showcase.cjs --dry-run          # plan only
  *   node db/apply-demo-showcase.cjs                    # apply for real (default DB)
  *   node db/apply-demo-showcase.cjs --db=/tmp/copy.db  # apply against a different file
  */
@@ -54,12 +53,16 @@ const DB_PATH = dbArg ? dbArg.slice(5) : process.env.LUMENU_DB || DEFAULT_DB;
 const CONFIG_FILE = path.join(__dirname, 'showcase-board-configs.json');
 const configs = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
 
-// Ground truth: sha256(JSON.stringify(config)) as generated from the merged
-// server/db/seed.js (PR #40). If the config file drifts, this fails loudly.
+// Menus / schedules / logos: single source of truth.
+const { menus, schedules, logos } = require('./showcase-configs.cjs');
+
+// sha256(JSON.stringify(config-string)) pins — regenerated from
+// showcase-configs.cjs via db/regen-showcase-configs.cjs. If the config file
+// drifts from the module, this fails loudly.
 const EXPECTED_SHA = {
-  taqueria: 'cbea07418d2faa4229eedbab62fa0a85a7e6b94a0640034201b4eb50f6db22ec',
-  ember: '87e096092f4c3ba1256ae3cf604873d6368694d75358cc90050810f26ca3922e',
-  oliva: '7b56617ce08f2bc1b8e539f31400a5ed2272ac24f3617519886eadd8361416c3',
+  taqueria: 'e5fb19a786c37b4d96ad34b21ae7d7573e42eeb29382427bf513017898362ec7',
+  ember: 'ba1fea11c333c3e0cf4972ea4bd7428a71cf408e1ae2181998b1d44af4d24482',
+  oliva: '0ef2f5c2db3135155121cff380b560264e899b4e453719a821f4da27667878b8',
 };
 
 for (const k of Object.keys(EXPECTED_SHA)) {
@@ -67,86 +70,37 @@ for (const k of Object.keys(EXPECTED_SHA)) {
   const h = crypto.createHash('sha256').update(s).digest('hex');
   if (h !== EXPECTED_SHA[k]) {
     throw new Error(
-      `showcase-board-configs.json "${k}" does not match seed.js ground truth (${h}); regenerate it from server/db/seed.js`
+      `showcase-board-configs.json "${k}" does not match showcase-configs.cjs ground truth (${h}); run node db/regen-showcase-configs.cjs`
     );
   }
 }
 
 const DEMO_USER_EMAIL = 'owner@menuvo.app';
+// Canonical config format: `{ layout: board }`, SINGLE-stringified — the same
+// shape seed.js and the dashboard's templates.js normalization produce, and
+// the shape extractLayout resolves first ("template config_json.layout").
+// The pinned file stores each board as a JSON-stringIFIED STRING (legacy
+// double form), so parse once → object, then wrap + stringify once.
+const canonicalConfig = (k) => JSON.stringify({ layout: JSON.parse(configs[k]) });
 const TEMPLATE_EMBER_ID = 'c0d5152e-61c8-4f9e-accc-b50ba3aba887'; // was "Classic Split Layout"
 const TEMPLATE_OLIVA_ID = '04a3709b-1bcb-4a0e-b85a-6f0ee188699a'; // was "Full Screen Centered"
-const DEMO_RESTAURANT_NAMES = ['Brew & Bean Café', 'Trattoria Bella Vita'];
+const DEMO_RESTAURANT_NAMES = ['Sol y Sombra Taquería', 'Ember & Oak Coffee Bar', 'Oliva Trattoria'];
 const DEMO_SLUGS = ['brew-main-board', 'brew-bar-display', 'trattoria-menu'];
-const TAQUERIA_SLUG = 'sol-y-sombra-main';
+const SOL_SLUG = 'sol-y-sombra-main';
 const OWNER_SLUG = 'right-tv-luptitas';
 const ASSETS = [
   path.join(ROOT, 'uploads', 'demo', 'ember-coffee.jpg'),
   path.join(ROOT, 'uploads', 'demo', 'oliva-trattoria.jpg'),
   path.join(ROOT, 'uploads', 'demo', 'sol-y-sombra.jpg'),
+  path.join(ROOT, 'uploads', 'demo', 'ember-oak-logo.png'),
+  path.join(ROOT, 'uploads', 'demo', 'sol-y-sombra-logo.png'),
+  path.join(ROOT, 'uploads', 'demo', 'oliva-logo.png'),
 ];
-
-// ── Designer's menu content (verbatim from server/db/seed.js on main) ──
-const MENUS = {
-  // Ember & Oak — used for brew-main-board AND brew-bar-display
-  ember: [
-    { n: 'Espresso', d: 'Double shot · house blend', p: 3.5, c: 'Coffee', z: 'drinks', o: 1 },
-    { n: 'Oat Milk Cortado', d: 'Two shots, silky oat milk', p: 5.5, c: 'Coffee', z: 'drinks', o: 2 },
-    { n: 'Maple Sea Salt Latte', d: 'Espresso, maple, flaky sea salt', p: 6.25, c: 'Coffee', z: 'drinks', o: 3 },
-    { n: 'Cold Brew Tonic', d: 'Citrus tonic, slow-steeped coffee', p: 6.5, c: 'Coffee', z: 'drinks', o: 4 },
-    { n: 'Ceremonial Matcha', d: 'Stone-milled, vanilla oat foam', p: 6.0, c: 'Tea', z: 'noncoffee', o: 1 },
-    { n: 'Ginger Citrus Tea', d: 'Fresh ginger, lemon, honey', p: 4.75, c: 'Tea', z: 'noncoffee', o: 2, a: 'sold_out' },
-    { n: 'Almond Croissant', d: 'Frangipane, toasted almond, butter', p: 5.5, c: 'Bakes', z: 'bakes', o: 1 },
-    { n: 'Cardamom Bun', d: 'Brown sugar, cardamom, orange zest', p: 4.75, c: 'Bakes', z: 'bakes', o: 2 },
-    { n: 'Miso Chocolate Cookie', d: 'Dark chocolate, sesame, sea salt', p: 3.75, c: 'Bakes', z: 'bakes', o: 3 },
-    { n: 'Seasonal Fruit Galette', d: 'Market fruit, oat crumble, cream', p: 6.5, c: 'Bakes', z: 'bakes', o: 4 },
-  ],
-  // Oliva — used for trattoria-menu
-  oliva: [
-    { n: 'Burrata e Pomodori', d: 'Creamy burrata, heirloom tomato, basil oil', p: 16.0, c: 'Antipasti', z: 'antipasti', o: 1 },
-    { n: 'Polpo Alla Griglia', d: 'Grilled octopus, lemon, smoked potato', p: 19.0, c: 'Antipasti', z: 'antipasti', o: 2 },
-    { n: 'Focaccia al Rosmarino', d: 'Warm rosemary focaccia, whipped ricotta', p: 9.0, c: 'Antipasti', z: 'antipasti', o: 3 },
-    { n: 'Tagliatelle al Ragù', d: 'Hand-cut pasta, beef and pork sugo', p: 23.0, c: 'Primi', z: 'primi', o: 1 },
-    { n: 'Cacio e Pepe', d: 'Tonnarelli, pecorino romano, black pepper', p: 20.0, c: 'Primi', z: 'primi', o: 2 },
-    { n: 'Risotto ai Funghi', d: 'Wild mushrooms, parmigiano, thyme', p: 22.0, c: 'Primi', z: 'primi', o: 3 },
-    { n: 'Branzino Arrosto', d: 'Roasted sea bass, fennel, salsa verde', p: 31.0, c: 'Secondi', z: 'secondi', o: 1 },
-    { n: 'Pollo al Mattone', d: 'Pressed chicken, lemon, rosemary jus', p: 28.0, c: 'Secondi', z: 'secondi', o: 2, a: 'sold_out' },
-    { n: 'Tiramisù della Casa', d: 'Espresso mascarpone, cocoa, ladyfingers', p: 11.0, c: 'Dolci', z: 'dolci', o: 1 },
-    { n: 'Panna Cotta', d: 'Vanilla bean, blood orange, pistachio', p: 10.0, c: 'Dolci', z: 'dolci', o: 2 },
-  ],
-  // Sol y Sombra taquería — new board
-  taqueria: [
-    { n: 'Camarón al Carbón', d: 'Grilled shrimp, guajillo butter, avocado', p: 15.5, c: 'Tacos', z: 'tacos', o: 1 },
-    { n: 'Birria de Res', d: 'Slow-braised beef, queso, consommé', p: 16.0, c: 'Tacos', z: 'tacos', o: 2 },
-    { n: 'Pollo Adobado', d: 'Achiote chicken, pineapple, salsa verde', p: 14.0, c: 'Tacos', z: 'tacos', o: 3 },
-    { n: 'Hongos al Pastor', d: 'Roasted mushrooms, pineapple, pepita', p: 13.0, c: 'Tacos', z: 'tacos', o: 4 },
-    { n: 'Costilla de Cerdo', d: 'Chile morita glaze, charred scallion', p: 24.0, c: 'Platos Fuertes', z: 'plates', o: 1 },
-    { n: 'Pesca del Día', d: 'Citrus escabeche, crispy potato, herbs', p: 26.0, c: 'Platos Fuertes', z: 'plates', o: 2 },
-    { n: 'Enchiladas de Mole', d: 'Oaxacan mole negro, crema, sesame', p: 19.0, c: 'Platos Fuertes', z: 'plates', o: 3, a: 'sold_out' },
-    { n: 'Guacamole de la Casa', d: 'Avocado, serrano, lime, blue corn chips', p: 10.0, c: 'Para Compartir', z: 'sharing', o: 1 },
-    { n: 'Elote Asado', d: 'Cotija, chile ancho, lime crema', p: 8.0, c: 'Para Compartir', z: 'sharing', o: 2 },
-    { n: 'Queso Fundido', d: 'Oaxaca cheese, chorizo, warm tortillas', p: 12.0, c: 'Para Compartir', z: 'sharing', o: 3 },
-  ],
-};
-
-const SCHEDULES = {
-  taqueria: [
-    { menu: 'All Day Taquería', start: '11:00', end: '22:00', days: [1, 2, 3, 4, 5, 6, 7] },
-    { menu: 'Late Night Tacos', start: '22:00', end: '01:00', days: [5, 6] },
-  ],
-  ember: [
-    { menu: 'Morning Menu', start: '07:00', end: '11:00', days: [1, 2, 3, 4, 5, 6, 7] },
-    { menu: 'Afternoon Menu', start: '11:00', end: '16:00', days: [1, 2, 3, 4, 5, 6, 7] },
-  ],
-  oliva: [
-    { menu: 'Pranzo', start: '12:00', end: '15:00', days: [1, 2, 3, 4, 5, 6] },
-    { menu: 'Cena', start: '17:00', end: '22:30', days: [1, 2, 3, 4, 5, 6, 7] },
-  ],
-};
 
 if (!fs.existsSync(DB_PATH)) throw new Error(`Database not found: ${DB_PATH}`);
 for (const asset of ASSETS) {
   const st = fs.statSync(asset, { throwIfNoEntry: false });
-  if (!st || st.size < 100_000) throw new Error(`Board asset missing/small: ${asset}`);
+  if (!st || st.size < 10_000) throw new Error(`Board asset missing/small: ${asset}`);
 }
 
 const db = new Database(DB_PATH);
@@ -163,8 +117,11 @@ for (const tplId of [TEMPLATE_EMBER_ID, TEMPLATE_OLIVA_ID]) {
   }
 }
 const demoRestaurantIds = new Set(
-  db.prepare('SELECT id FROM restaurants WHERE name IN (?, ?)').all(...DEMO_RESTAURANT_NAMES).map((r) => r.id)
+  db.prepare('SELECT id FROM restaurants WHERE name IN (?, ?, ?)').all(...DEMO_RESTAURANT_NAMES).map((r) => r.id)
 );
+if (demoRestaurantIds.size !== 3) {
+  throw new Error(`Abort: expected the three demo restaurants (${DEMO_RESTAURANT_NAMES.join(', ')})`);
+}
 for (const slug of DEMO_SLUGS) {
   const s = db.prepare('SELECT id, restaurant_id FROM screens WHERE unique_slug = ?').get(slug);
   if (!s) throw new Error(`Abort: demo screen ${slug} not found`);
@@ -184,67 +141,65 @@ const ownerBefore = db
   .get(OWNER_SLUG);
 const ownerBeforeHash = crypto.createHash('sha256').update(JSON.stringify(ownerBefore)).digest('hex').slice(0, 16);
 
-console.log(`\nLumenu showcase demo-board apply (${DRY ? 'DRY-RUN — no writes' : 'LIVE'})`);
+console.log(`\nLumenu showcase demo-board apply v2 (${DRY ? 'DRY-RUN — no writes' : 'LIVE'})`);
 console.log(`  DB: ${DB_PATH}\n`);
 
 // ── All writes live inside ONE transaction ──
 const applyAll = db.transaction(() => {
-  console.log('1) Rewriting demo templates (IDs kept):');
+  console.log('1) Rewriting demo template layouts (IDs/names kept):');
   const updateTpl = db.prepare(
     'UPDATE templates SET name = ?, video_url = ?, video_duration_ms = ?, orientation = ?, config_json = ? WHERE id = ?'
   );
   if (DRY) {
-    plan('Classic Split Layout → “Ember & Oak — Morning Roast” (landscape, ember-coffee.jpg)');
-    plan('Full Screen Centered → “Oliva — Trattoria Notturna” (portrait, oliva-trattoria.jpg)');
+    plan('c0d5152e → “Ember & Oak — Morning Roast” v2 (logo + oat panels + corrected menu)');
+    plan('04a3709b → “Oliva — Trattoria Notturna” v2 (logo + masthead + corrected menu)');
+    plan('“Sol y Sombra — Fire & Citrus” template config update (logo + panels + corrected menu)');
   } else {
-    updateTpl.run('Ember & Oak — Morning Roast', null, null, 'landscape', JSON.stringify(configs.ember), TEMPLATE_EMBER_ID);
-    updateTpl.run('Oliva — Trattoria Notturna', null, null, 'portrait', JSON.stringify(configs.oliva), TEMPLATE_OLIVA_ID);
-    log(`updated ${TEMPLATE_EMBER_ID.slice(0, 8)} (ember) + ${TEMPLATE_OLIVA_ID.slice(0, 8)} (oliva)`);
+    updateTpl.run('Ember & Oak — Morning Roast', null, null, 'landscape', canonicalConfig('ember'), TEMPLATE_EMBER_ID);
+    updateTpl.run('Oliva — Trattoria Notturna', null, null, 'portrait', canonicalConfig('oliva'), TEMPLATE_OLIVA_ID);
+    const solTpl = db.prepare("SELECT id FROM templates WHERE name = 'Sol y Sombra — Fire & Citrus'").get();
+    if (solTpl) {
+      db.prepare('UPDATE templates SET orientation = ?, config_json = ? WHERE id = ?')
+        .run('landscape', canonicalConfig('taqueria'), solTpl.id);
+    } else {
+      db.prepare('INSERT INTO templates (id, name, video_url, video_duration_ms, orientation, config_json) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(uuidv4(), 'Sol y Sombra — Fire & Citrus', null, null, 'landscape', canonicalConfig('taqueria'));
+    }
+    log('3 template configs updated');
   }
 
-  console.log('2) New showcase board — Sol y Sombra Taquería:');
-  const findRestaurant = () => db.prepare('SELECT id FROM restaurants WHERE name = ?').get('Sol y Sombra Taquería');
-  const findTemplate = () => db.prepare('SELECT id FROM templates WHERE name = ?').get('Sol y Sombra — Fire & Citrus');
-  const findScreen = () => db.prepare('SELECT id FROM screens WHERE unique_slug = ?').get(TAQUERIA_SLUG);
-
-  let rest = findRestaurant();
-  if (!rest) {
-    if (DRY) { plan('restaurant “Sol y Sombra Taquería” would be created'); rest = { id: '(new-restaurant)' }; }
-    else { rest = { id: uuidv4() }; db.prepare('INSERT INTO restaurants (id, user_id, name) VALUES (?, ?, ?)').run(rest.id, demoUser.id, 'Sol y Sombra Taquería'); }
-  }
-  plan(`restaurant “Sol y Sombra Taquería”: ${rest.id.slice(0, 12)}`);
-
-  let tpl = findTemplate();
-  if (!tpl) {
-    if (DRY) { plan('template “Sol y Sombra — Fire & Citrus” would be created'); tpl = { id: '(new-template)' }; }
-    else { tpl = { id: uuidv4() }; db.prepare('INSERT INTO templates (id, name, video_url, video_duration_ms, orientation, config_json) VALUES (?, ?, ?, ?, ?, ?)').run(tpl.id, 'Sol y Sombra — Fire & Citrus', null, null, 'landscape', JSON.stringify(configs.taqueria)); }
-  }
-  plan(`template “Sol y Sombra — Fire & Citrus”: ${tpl.id.slice(0, 12)} (landscape, sol-y-sombra.jpg)`);
-
-  let screen = findScreen();
-  if (!screen) {
-    if (DRY) { plan(`screen ${TAQUERIA_SLUG} would be created (landscape)`); screen = { id: '(new-screen)' }; }
-    else { screen = { id: uuidv4() }; db.prepare('INSERT INTO screens (id, restaurant_id, name, unique_slug, orientation, template_id) VALUES (?, ?, ?, ?, ?, ?)').run(screen.id, rest.id, 'Sol y Sombra Main Board', TAQUERIA_SLUG, 'landscape', tpl.id); }
-  }
-  plan(`screen ${TAQUERIA_SLUG}: ${screen.id.slice(0, 12)}`);
-
-  console.log('3) Re-pointing demo screens:');
-  const updateScreen = db.prepare('UPDATE screens SET name = ?, orientation = ?, template_id = ? WHERE unique_slug = ?');
+  console.log('2) Converging demo screens to the showcase mapping (implicit want: brew→Ember, sol-y-sombra-main):');
+  const findRestaurant = (name) => db.prepare('SELECT id FROM restaurants WHERE name = ?').get(name);
+  const solRest = findRestaurant('Sol y Sombra Taquería');
+  const emberRest = findRestaurant('Ember & Oak Coffee Bar');
+  const olivaRest = findRestaurant('Oliva Trattoria');
+  const updateScreen = db.prepare('UPDATE screens SET restaurant_id = ?, name = ?, orientation = ?, template_id = ? WHERE unique_slug = ?');
   if (DRY) {
-    plan('brew-main-board  → Ember & Oak Main Menu (landscape)');
-    plan('brew-bar-display → Ember & Oak Bar Display (landscape)');
-    plan('trattoria-menu   → Oliva Portrait Menu (portrait)');
+    plan('brew-main-board  → Ember & Oak Main Menu (Ember template + restaurant)');
+    plan('brew-bar-display → Ember & Oak Bar Display (Ember template + restaurant)');
+    plan('trattoria-menu   → Oliva Portrait Menu (Oliva template + restaurant)');
+    plan(`sol-y-sombra-main  ensure-exists (Sol template + restaurant, landscape)`);
   } else {
-    updateScreen.run('Ember & Oak Main Menu', 'landscape', TEMPLATE_EMBER_ID, 'brew-main-board');
-    updateScreen.run('Ember & Oak Bar Display', 'landscape', TEMPLATE_EMBER_ID, 'brew-bar-display');
-    updateScreen.run('Oliva Portrait Menu', 'portrait', TEMPLATE_OLIVA_ID, 'trattoria-menu');
-    log('3 demo screens updated');
+    updateScreen.run(emberRest.id, 'Ember & Oak Main Menu', 'landscape', TEMPLATE_EMBER_ID, 'brew-main-board');
+    updateScreen.run(emberRest.id, 'Ember & Oak Bar Display', 'landscape', TEMPLATE_EMBER_ID, 'brew-bar-display');
+    updateScreen.run(olivaRest.id, 'Oliva Portrait Menu', 'portrait', TEMPLATE_OLIVA_ID, 'trattoria-menu');
+    const solTpl = db.prepare("SELECT id FROM templates WHERE name = 'Sol y Sombra — Fire & Citrus'").get();
+    const exists = db.prepare('SELECT id FROM screens WHERE unique_slug = ?').get(SOL_SLUG);
+    if (!exists) {
+      db.prepare('INSERT INTO screens (id, restaurant_id, name, unique_slug, orientation, template_id) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(uuidv4(), solRest.id, 'Sol y Sombra Main Board', SOL_SLUG, 'landscape', solTpl.id);
+      log(`created screen ${SOL_SLUG}`);
+    } else {
+      db.prepare('UPDATE screens SET restaurant_id = ?, name = ?, orientation = ?, template_id = ? WHERE unique_slug = ?')
+        .run(solRest.id, 'Sol y Sombra Main Board', 'landscape', solTpl.id, SOL_SLUG);
+    }
+    log('4 demo screens converged');
   }
 
-  console.log('4) Replacing demo menu content (demo screens only):');
-  const replaceMenuAndSchedules = (label, screenId, menuKey, schedulesKey) => {
-    const items = MENUS[menuKey];
-    const scheds = SCHEDULES[schedulesKey];
+  console.log('3) Replacing demo menu content (demo screens only):');
+  const replaceMenuAndSchedules = (label, screenId, menuKey, schedKey) => {
+    const items = menus[menuKey];
+    const scheds = schedules[schedKey];
     if (DRY || !screenId) {
       plan(`${label}: replace with ${items.length} items + ${scheds.length} schedules`);
       return;
@@ -265,10 +220,27 @@ const applyAll = db.transaction(() => {
   replaceMenuAndSchedules('brew-main-board', slugId('brew-main-board'), 'ember', 'ember');
   replaceMenuAndSchedules('brew-bar-display', slugId('brew-bar-display'), 'ember', 'ember');
   replaceMenuAndSchedules('trattoria-menu', slugId('trattoria-menu'), 'oliva', 'oliva');
-  replaceMenuAndSchedules('sol-y-sombra-main', screen ? screen.id : null, 'taqueria', 'taqueria');
+  replaceMenuAndSchedules('sol-y-sombra-main', slugId('sol-y-sombra-main'), 'taqueria', 'taqueria');
 
-  const itemTotal = MENUS.ember.length * 2 + MENUS.oliva.length + MENUS.taqueria.length;
-  const schedTotal = SCHEDULES.ember.length * 2 + SCHEDULES.oliva.length + SCHEDULES.taqueria.length;
+  console.log('4) Setting logo_url on demo restaurants (only when empty):');
+  const setLogo = (name, url) => {
+    const r = findRestaurant(name);
+    const cur = db.prepare('SELECT logo_url FROM restaurants WHERE id = ?').get(r.id);
+    if (cur && cur.logo_url) {
+      plan(`${name}: keeps existing logo_url (${cur.logo_url})`);
+    } else if (DRY) {
+      plan(`${name}: logo_url would be set to ${url}`);
+    } else {
+      db.prepare('UPDATE restaurants SET logo_url = ? WHERE id = ?').run(url, r.id);
+      log(`${name} ← ${url}`);
+    }
+  };
+  setLogo('Sol y Sombra Taquería', logos.sol);
+  setLogo('Ember & Oak Coffee Bar', logos.ember);
+  setLogo('Oliva Trattoria', logos.oliva);
+
+  const itemTotal = menus.ember.length * 2 + menus.oliva.length + menus.taqueria.length;
+  const schedTotal = schedules.ember.length * 2 + schedules.oliva.length + schedules.taqueria.length;
   log(`totals: ${itemTotal} menu items + ${schedTotal} schedules across 4 demo screens`);
 });
 
@@ -284,7 +256,7 @@ console.log('\n── Apply committed (single transaction) ──\n');
 
 // ── Verification ──
 console.log('Verification (post-apply):');
-for (const slug of [...DEMO_SLUGS, TAQUERIA_SLUG, OWNER_SLUG]) {
+for (const slug of [...DEMO_SLUGS, SOL_SLUG, OWNER_SLUG]) {
   const row = db
     .prepare(
       `SELECT s.name AS screen, s.orientation AS orient, t.name AS tpl_name, t.config_json AS cfg,
@@ -295,9 +267,15 @@ for (const slug of [...DEMO_SLUGS, TAQUERIA_SLUG, OWNER_SLUG]) {
     .get(slug);
   if (!row) { console.log(`  ${slug}: MISSING`); continue; }
   let bg = null;
-  try { const cfg = JSON.parse(row.cfg); bg = cfg?.layout?.background?.src || null; } catch {}
+  let logo = null;
+  try {
+    const cfg = JSON.parse(row.cfg);
+    bg = cfg?.layout?.background?.src || null;
+    const logoEl = (cfg?.layout?.elements || []).find((e) => e.id === 'logo');
+    logo = logoEl?.src || null;
+  } catch {}
   console.log(
-    `  ${slug.padEnd(20)} items=${row.items} scheds=${row.scheds} orient=${row.orient} tpl=${row.tpl_name}${bg ? ` bg=${bg}` : ''}`
+    `  ${slug.padEnd(20)} items=${row.items} scheds=${row.scheds} orient=${row.orient} tpl=${row.tpl_name}${bg ? ` bg=${bg}` : ''}${logo ? ` logo=${logo}` : ''}`
   );
 }
 const ownerAfter = db
