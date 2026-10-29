@@ -186,6 +186,7 @@
       height: raw.height || DEFAULT_CANVAS.height,
       background: isObj(raw.background) ? raw.background : null,
       elements: Array.isArray(raw.elements) ? raw.elements : [],
+      animation: isObj(raw.animation) ? raw.animation : null,
     };
     return layout;
   }
@@ -310,6 +311,7 @@
   function renderLayout(layout, items, ctx) {
     ctx.overlay.innerHTML = '';
     applyBackground(layout.background, ctx);
+    applyAnimation(layout.animation, ctx);
 
     var canvas = { width: layout.width, height: layout.height };
     var elements = layout.elements.slice().sort(function (a, b) {
@@ -571,6 +573,123 @@
       ov.style.backgroundColor = bg.overlay_color;
       bgEl.appendChild(ov);
     }
+  }
+
+  // ── Background animation (owner req #5 — "simple color animation") ────
+  // Two movements, both CSS-driven (@keyframes injected via a <style> el):
+  //   1. Ken-Burns drift — the BACKGROUND IMAGE element slowly zooms and pans
+  //      (ping-pong). Pan is clamped to ≤2% of the element so the cover can
+  //      never reveal canvas edges (the scale-up guarantees ≥ that margin).
+  //   2. Scrim pulse — the overlay tint interpolates color_a↔color_b while
+  //      its opacity breathes alpha_base ± alpha_amplitude on a sine-like curve.
+  // Text, menu_items, image/logo and shape panels are NEVER animated (they are
+  // separate sibling elements in #overlay-layer, untouched here).
+  // When `layout.animation` is ABSENT this function only clears any prior
+  // animation state — the static board renders byte-for-byte as before.
+
+  var ANIM_STYLE_ID = 'lumenu-anim-keyframes';
+
+  function numOr(v, fallback) {
+    var n = parseFloat(v);
+    return isFinite(n) ? n : fallback;
+  }
+
+  function clampNum(v, min, max) {
+    if (v < min) return min;
+    if (v > max) return max;
+    return v;
+  }
+
+  // Map the designer's easing names to CSS. easeInOutSine → the exact
+  // cubic-bezier the spec cites; 'sine' → ease-in-out (closest native).
+  function easingCss(e) {
+    var s = String(e || '').toLowerCase();
+    if (s === 'easeinoutsine') return 'cubic-bezier(0.37, 0.00, 0.63, 1.00)';
+    if (s === 'sine') return 'ease-in-out';
+    if (s === 'linear') return 'linear';
+    if (s === 'easein') return 'ease-in';
+    if (s === 'easeout') return 'ease-out';
+    return 'ease-in-out';
+  }
+
+  function getAnimStyleEl() {
+    var el = document.getElementById(ANIM_STYLE_ID);
+    if (!el) {
+      el = document.createElement('style');
+      el.id = ANIM_STYLE_ID;
+      (document.head || document.documentElement).appendChild(el);
+    }
+    return el;
+  }
+
+  function buildKenBurnsKeyframes(name, kb) {
+    var from = clampNum(numOr(kb.scale_from, 1.0), 1.0, 1.5);
+    var to = clampNum(numOr(kb.scale_to, 1.07), 1.0, 1.5);
+    var pan = isObj(kb.pan_pct) ? kb.pan_pct : {};
+    // Pan end offset in % of the element box; clamp to ±2% (spec: never
+    // reveal edges — the scale-up always provides at least that margin).
+    var xEnd = clampNum(numOr(pan.x_end, 0), -2, 2);
+    var yEnd = clampNum(numOr(pan.y_end, 0), -2, 2);
+    return '@keyframes ' + name + '{' +
+      '0%{transform:scale(' + from + ') translate(0%,0%);}' +
+      '100%{transform:scale(' + to + ') translate(' + xEnd + '%,' + yEnd + '%);}' +
+      '}';
+  }
+
+  function buildScrimKeyframes(name, sp) {
+    var a = sp.color_a || '#000000';
+    var b = sp.color_b || '#000000';
+    var base = clampNum(numOr(sp.alpha_base, 0.5), 0, 1);
+    var amp = clampNum(numOr(sp.alpha_amplitude, 0.05), 0, 0.5);
+    var lo = clampNum(base - amp, 0, 1);
+    var hi = clampNum(base + amp, 0, 1);
+    return '@keyframes ' + name + '{' +
+      '0%,100%{background-color:' + a + ';opacity:' + lo + ';}' +
+      '50%{background-color:' + b + ';opacity:' + hi + ';}' +
+      '}';
+  }
+
+  function applyAnimation(anim, ctx) {
+    var bgEl = ctx && ctx.backgroundEl;
+    if (!bgEl) return;
+
+    // Reset any previously-applied animation (class + injected keyframes) so a
+    // board without animation that follows an animated board renders clean.
+    bgEl.classList.remove('lx-kenburns');
+    var prevStyle = document.getElementById(ANIM_STYLE_ID);
+    if (prevStyle && prevStyle.textContent) prevStyle.textContent = '';
+
+    if (!isObj(anim)) return;                    // no animation → done (no-op)
+    var kb = isObj(anim.ken_burns) ? anim.ken_burns : null;
+    var sp = isObj(anim.scrim_pulse) ? anim.scrim_pulse : null;
+    if (!kb && !sp) return;
+
+    // Only create/inject the style element when there is real animation to
+    // apply, so non-demo boards (no `layout.animation`) get zero DOM changes.
+    var styleEl = getAnimStyleEl();
+    var css = '';
+
+    if (kb) {
+      var kbName = 'lx-kb';
+      bgEl.classList.add('lx-kenburns');
+      bgEl.style.animation = kbName + ' ' +
+        Math.round(numOr(kb.leg_ms, 40000)) + 'ms ' +
+        easingCss(kb.easing) + ' infinite alternate';
+      css += buildKenBurnsKeyframes(kbName, kb);
+    }
+
+    if (sp) {
+      var ov = bgEl.querySelector('.layout-bg-overlay');
+      if (ov) {
+        var spName = 'lx-sp';
+        ov.style.animation = spName + ' ' +
+          Math.round(numOr(sp.cycle_ms, 10000)) + 'ms ' +
+          easingCss(sp.easing) + ' infinite';
+        css += buildScrimKeyframes(spName, sp);
+      }
+    }
+
+    if (css) styleEl.textContent = css;
   }
 
   // ── Export ───────────────────────────────────────────────────────────
