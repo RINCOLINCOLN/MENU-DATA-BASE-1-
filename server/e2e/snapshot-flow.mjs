@@ -1,14 +1,22 @@
 /**
  * E2E: Snapshot-to-digital backend + payment-hold groundwork + OCR QUALITY.
  *
- * Run against a LIVE server (BASE_URL, default http://localhost:3000):
- *   cd server && node e2e/snapshot-flow.mjs
+ * Run against a THROWAWAY server + THROWAWAY database (never the live one):
+ *   cd server
+ *   export E2E_DB_PATH=/tmp/lumenu-e2e/menuvo.db   # seeded from the live DB on first use
+ *   PORT=3011 DB_PATH="$E2E_DB_PATH" node server.js &
+ *   BASE_URL=http://127.0.0.1:3011 node e2e/snapshot-flow.mjs
+ *
+ * E2E_DB_PATH is MANDATORY (see e2e/lib/e2e-db.mjs): this suite writes rows and
+ * toggles on_hold in SQLite, so pointing it at the live DB pollutes production.
+ * It refuses to run if E2E_DB_PATH is unset, resolves to server/data/menuvo.db,
+ * or if BASE_URL is the live :3000 server.
  *
  * Covers the contract Dashboard Dev's UI is built against:
  *   POST /api/snapshots           → { snapshot_id, status: "processing" }
  *   GET  /api/snapshots/:id       → { status, original_url, mockup_url?, message?, menu_items?, template?, screen? }
  *   PATCH /api/snapshots/:id      → owner-redesign flag
- * Hold flag: /api/screens/:slug/data reflects restaurant/screen on_hold.
+ *   Hold flag: /api/screens/:slug/data reflects restaurant/screen on_hold.
  *
  * OCR QUALITY GATE (owner's #1 complaint):
  *   [8] THE owner's real café menu photo (regression fixture) — the pipeline
@@ -20,13 +28,18 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import Database from 'better-sqlite3';
+import { prepareE2eDatabase, assertNotLiveServer, requireE2eDbPath } from './lib/e2e-db.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 const FIXTURE = path.join(__dirname, 'fixtures', 'menu-photo.png');
 const OWNER_FIXTURE = path.join(__dirname, 'fixtures', 'owner-menu-photo.jpg');
 const NOISY_FIXTURE = path.join(__dirname, 'fixtures', 'noisy-blur.jpg');
-const DB_PATH = process.env.E2E_DB_PATH || path.join(__dirname, '..', 'data', 'menuvo.db');
+// Mandatory + guarded: both checks exit non-zero rather than touch the live
+// database. E2E_DB_PATH first, so a missing/unsafe path is reported as such.
+requireE2eDbPath();
+assertNotLiveServer(BASE_URL);
+const { dbPath: DB_PATH } = await prepareE2eDatabase();
 
 const RETAKE_MESSAGE = "We couldn't read that menu clearly. Try a straighter, closer photo in good light.";
 
@@ -138,9 +151,15 @@ assert(tv.body.menu_items.length === snap.menu_items.length, 'TV data returns th
 assert(tv.body.menu_items.every((i) => i.price !== null), 'items have editable prices (not baked)');
 
 const rawDb = new Database(DB_PATH);
+// This write must be visible through the server: if it is not, the server is
+// bound to a different database than E2E_DB_PATH (the classic way to think you
+// are on a throwaway DB while actually writing to the live one).
+const restRow = rawDb.prepare('SELECT COUNT(*) c FROM restaurants WHERE id = ?').get(restaurantId);
+assert(restRow.c === 1, `throwaway DB is the one the server writes to (restaurant found in ${DB_PATH})`);
 rawDb.prepare('UPDATE restaurants SET on_hold = 1 WHERE id = ?').run(restaurantId);
 const tvHold = await api(`/api/screens/${snap.screen.slug}/data`);
-assert(tvHold.body.on_hold === true, 'TV data: on_hold true once restaurant flag set');
+assert(tvHold.body.on_hold === true,
+  `TV data: on_hold true once restaurant flag set (got ${tvHold.body?.on_hold}) — if false, the server is not running against E2E_DB_PATH`);
 rawDb.prepare('UPDATE restaurants SET on_hold = 0 WHERE id = ?').run(restaurantId);
 const tvAfter = await api(`/api/screens/${snap.screen.slug}/data`);
 assert(tvAfter.body.on_hold === false, 'TV data: on_hold reverts');
