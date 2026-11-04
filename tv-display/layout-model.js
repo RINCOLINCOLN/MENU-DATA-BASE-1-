@@ -195,7 +195,7 @@
    * Designer zone types that are text-only (never bind menu items unless
    * the zone has an explicit binding).
    */
-  var DESIGNER_TEXT_TYPES = ['header', 'category_header', 'footer', 'text'];
+  var DESIGNER_TEXT_TYPES = ['header', 'category_header', 'footer', 'text', 'price'];
   var DESIGNER_MENU_TYPES = ['menu_items', 'specials', 'menu'];
 
   /**
@@ -230,6 +230,38 @@
     items = items || [];
     return zones.map(function (z, i) {
       var type = z.type || '';
+
+      // Standalone price (owner request): one amount and nothing else, dropped
+      // over a photo of a printed menu. Rendered as bare letters/numbers by
+      // default -- a fill only when the owner explicitly picks one.
+      if (type === 'price') {
+        return {
+          id: z.id || 'price-zone-' + i,
+          type: 'price',
+          x: z.x, y: z.y, width: z.width, height: z.height,
+          coords: unitForZone(z),
+          z_index: i,
+          align: z.align || z.alignment || 'left',
+          font_size: z.font_size != null ? z.font_size : 28,
+          font_size_min: z.min_font_size || z.font_size_min,
+          font_size_max: z.max_font_size || z.font_size_max,
+          font_family: z.font_family,
+          font_weight: z.font_weight || '700',
+          color: z.color,
+          letter_spacing: z.letter_spacing,
+          line_height: z.line_height,
+          background_color: z.background_color || z.bg_color || 'transparent',
+          padding: z.padding,
+          border_radius: z.border_radius,
+          opacity: z.opacity,
+          // Bound to a real menu_items row when item_id is set: the amount then
+          // always follows what the owner types on the Edit Menu page.
+          item_id: z.item_id || null,
+          price_value: z.price_value != null ? String(z.price_value) : (z.label || ''),
+          text: z.price_value != null ? String(z.price_value) : (z.label || ''),
+        };
+      }
+
       var hasBinding = (Array.isArray(z.item_ids) && z.item_ids.length > 0) ||
         !!z.category_filter || !!z.category || !!z.text_zone_id;
       var zoneItems = hasBinding
@@ -355,6 +387,8 @@
     var type = el.type || 'text';
     if (type === 'menu_items' || type === 'menu') {
       renderMenuItemsElement(el, div, items);
+    } else if (type === 'price') {
+      renderPriceElement(el, div, items);
     } else if (type === 'image') {
       renderImageElement(el, div);
     } else if (type === 'shape') {
@@ -366,11 +400,15 @@
     ctx.overlay.appendChild(div);
   }
 
-  function applyBoxStyles(el, div) {
+  // No background_color (or 'transparent') -> nothing is painted, so the
+  // element is bare text over whatever the board shows behind it. That is the
+  // default for every new designer element and the whole point of a price.
+  function applyBoxStyles(el, div, boxDefaults) {
     if (el.background_color && el.background_color !== 'transparent') {
+      var d = boxDefaults || {};
       div.style.backgroundColor = el.background_color;
-      div.style.padding = el.padding || '4px 8px';
-      div.style.borderRadius = el.border_radius || '0px';
+      div.style.padding = el.padding || d.padding || '4px 8px';
+      div.style.borderRadius = el.border_radius || d.radius || '0px';
       div.classList.add('has-background');
     } else if (el.padding) {
       div.style.padding = el.padding;
@@ -378,7 +416,7 @@
     if (el.border) div.style.border = el.border;
   }
 
-  function applyTextStyles(el, div) {
+  function applyTextStyles(el, div, defaultSize) {
     if (el.font_family) div.style.fontFamily = el.font_family;
     if (el.font_weight) div.style.fontWeight = el.font_weight;
     if (el.font_style && el.font_style !== 'normal') div.style.fontStyle = el.font_style;
@@ -387,8 +425,8 @@
     if (el.text_transform && el.text_transform !== 'none') div.style.textTransform = el.text_transform;
     if (el.line_height) div.style.lineHeight = el.line_height;
 
-    var base = el.font_size || el.font_size_max || 48;
-    var min = el.font_size_min || 20;
+    var base = el.font_size || el.font_size_max || defaultSize || 48;
+    var min = el.font_size_min || (defaultSize ? Math.min(defaultSize, 14) : 20);
     var max = el.font_size_max || 72;
     base = clamp(base, min, max);
     div.style.fontSize = base + 'px';
@@ -401,6 +439,46 @@
     if (el.text) {
       requestFit(div, el, el.text);
     }
+  }
+
+  /**
+   * Amount a price element shows. Priority:
+   *   1. live price of the bound menu_items row (item_id) - editing the item on
+   *      the Edit Menu page then updates the board with no re-design
+   *   2. the typed price_value
+   *   3. el.text (older saves)
+   * Plain numbers are formatted $0.00; anything that already starts with a
+   * non-digit ("$12", "Market price") is printed as typed.
+   */
+  function priceText(el, items) {
+    if (el.item_id && Array.isArray(items)) {
+      for (var i = 0; i < items.length; i++) {
+        if (items[i] && items[i].id === el.item_id) {
+          var p = items[i].price;
+          if (p != null && p !== '') {
+            return typeof p === 'number' ? formatPrice(p) : (formatPrice(Number(p)) || String(p));
+          }
+        }
+      }
+    }
+    var raw = el.price_value != null && el.price_value !== '' ? el.price_value : el.text;
+    raw = raw == null ? '' : String(raw).trim();
+    if (!raw) return '';
+    if (/^[^0-9]/.test(raw)) return raw;
+    var n = Number(raw.replace(/[^0-9.]/g, ''));
+    return isNaN(n) ? raw : formatPrice(n);
+  }
+
+  function renderPriceElement(el, div, items) {
+    div.classList.add('lx-price');
+    var txt = priceText(el, items);
+    div.textContent = txt;
+    if (!el.font_weight) div.style.fontWeight = '700';   // bold by default
+    applyTextStyles(el, div, 28);                        // price-sized, not 48
+    // Bare letters by default; a fill only when the owner picks one, and then
+    // with padding + rounding so it looks deliberate rather than cramped.
+    applyBoxStyles(el, div, { padding: '0.1em 0.4em', radius: '0.22em' });
+    if (txt) requestFit(div, el, txt);
   }
 
   function renderImageElement(el, div) {
