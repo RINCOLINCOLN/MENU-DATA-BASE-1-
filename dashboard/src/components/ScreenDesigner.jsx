@@ -39,6 +39,7 @@ const BG_COLORS = [
 ]
 
 const ZONE_TYPES = [
+  { value: 'price', label: 'Price', icon: '💵', desc: 'One price, e.g. $12.50 — sits on your photo' },
   { value: 'menu_items', label: 'Menu Items', icon: '🍽️', desc: 'Live item list with prices' },
   { value: 'header', label: 'Header / Text', icon: '🔤', desc: 'Heading or free text' },
   { value: 'category_header', label: 'Category Title', icon: '🏷️', desc: 'Bold category heading' },
@@ -47,9 +48,10 @@ const ZONE_TYPES = [
 ]
 
 const SAMPLE_HEADERS = {
-  header: 'Brew & Bean Café',
-  category_header: 'All Day Favorites',
-  footer: 'Open daily 7am – 10pm · est. 2012',
+  header: 'Your Heading',
+  category_header: 'Category Title',
+  footer: 'Open daily · hours and notes',
+  text: 'Your text',
 }
 
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n))
@@ -116,38 +118,138 @@ function NumberField({ value, onCommit, min, max, className, step = 1 }) {
 
 function defaultZone(type, index, orientation) {
   const isPortrait = orientation === 'portrait'
+  const isPrice = type === 'price'
   return {
     id: `zone-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
     type: type || 'menu_items',
-    label: type === 'menu_items' ? 'Menu Items' : (SAMPLE_HEADERS[type] || 'Text'),
+    label: type === 'menu_items' ? 'Menu Items' : isPrice ? 'Price' : (SAMPLE_HEADERS[type] || 'Text'),
     x: 5,
     y: isPortrait ? 12 + (index % 4) * 22 : 15 + (index % 3) * 28,
-    width: isPortrait ? 90 : 90,
-    height: isPortrait ? 18 : 24,
+    // A price is one short amount: a small box you drop next to a printed line.
+    width: isPrice ? 16 : 90,
+    height: isPrice ? 3.5 : isPortrait ? 18 : 24,
     alignment: type === 'header' || type === 'footer' || type === 'category_header' ? 'center' : 'left',
-    font_size: type === 'footer' ? 20 : type === 'category_header' ? 40 : type === 'header' ? 48 : 34,
-    min_font_size: 14,
-    max_font_size: 64,
-    font_weight: type === 'category_header' || type === 'header' ? 'bold' : 'normal',
+    // Price-sized, not heading-sized (48px is a headline on a 1080p board).
+    font_size: isPrice ? 28 : type === 'footer' ? 20 : type === 'category_header' ? 40 : type === 'header' ? 48 : 34,
+    min_font_size: isPrice ? 10 : 14,
+    max_font_size: isPrice ? 96 : 64,
+    // Bold by default for every new element (owner request).
+    font_weight: 'bold',
     font_family: 'Inter',
     color: '#ffffff',
-    bg_color: type === 'specials' ? 'rgba(214,158,46,0.25)' : 'transparent',
+    // Transparent by default: no opaque box behind new text or prices. The
+    // owner drops these straight onto a photo of their printed menu.
+    bg_color: '',
     is_price: type === 'menu_items',
     category_filter: '',
     item_ids: [],
+    ...(isPrice ? { price_value: '12.50', item_id: '' } : {}),
   }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Template config_json comes in two shapes:
+     • a flat zones array (what this designer writes)
+     • { layout: { elements: [...] } } — the TV's native layout model, used by
+       the showcase boards. Those carry a background image + animation, plus
+       elements this editor cannot edit (logo, rules).
+   Opening a layout-shaped template used to flatten it to `[]` on save. We now
+   read its editable elements as zones and merge them back into the ORIGINAL
+   object on save, so nothing outside the designer's reach is lost.
+   ───────────────────────────────────────────────────────────── */
+const EDITABLE_ELEMENT_TYPES = ['text', 'header', 'category_header', 'footer', 'menu_items', 'specials', 'price']
+const ZONE_TO_ELEMENT_TYPE = {
+  text: 'text', header: 'text', category_header: 'text', footer: 'text',
+  menu_items: 'menu_items', specials: 'specials', price: 'price',
+}
+
+const isLayoutConfig = (c) => !!c && !Array.isArray(c) && typeof c === 'object' &&
+  !!c.layout && Array.isArray(c.layout.elements)
+
+function parseConfig(configJson) {
+  if (!configJson) return null
+  let parsed = configJson
+  if (typeof parsed === 'string') {
+    try { parsed = JSON.parse(parsed) } catch { return null }
+  }
+  return parsed && typeof parsed === 'object' ? parsed : null
+}
+
+/* layout element → designer zone (original element kept on `_el`) */
+function elementToZone(el, index) {
+  const type = EDITABLE_ELEMENT_TYPES.includes(el.type) ? el.type : 'text'
+  return {
+    id: el.id || `zone-el-${index}`,
+    type,
+    label: el.label || el.text || (type === 'price' ? 'Price' : ''),
+    x: el.x ?? 0, y: el.y ?? 0,
+    width: el.width ?? 80, height: el.height ?? 10,
+    alignment: el.align || el.alignment || 'left',
+    font_size: el.font_size ?? 34,
+    min_font_size: el.font_size_min ?? 14,
+    max_font_size: el.font_size_max ?? 72,
+    font_weight: el.font_weight || 'normal',
+    font_family: el.font_family || 'Inter',
+    color: el.color || '#ffffff',
+    letter_spacing: el.letter_spacing,
+    text_transform: el.text_transform,
+    line_height: el.line_height,
+    bg_color: el.background_color && el.background_color !== 'transparent' ? el.background_color : '',
+    padding: el.padding,
+    border_radius: el.border_radius,
+    is_price: el.show_price !== false,
+    category_filter: el.category_filter || el.category || '',
+    item_ids: el.item_ids || [],
+    price_value: el.price_value != null ? String(el.price_value) : (type === 'price' ? (el.text || '') : ''),
+    item_id: el.item_id || '',
+    _el: el,
+  }
+}
+
+/* designer zone → layout element (merging over the original when there is one) */
+function zoneToElement(z) {
+  const el = { ...(z._el || {}) }
+  delete el._el
+  el.id = el.id || z.id
+  el.type = ZONE_TO_ELEMENT_TYPE[z.type] || 'text'
+  el.x = z.x; el.y = z.y; el.width = z.width; el.height = z.height
+  el.coords = el.coords || 'percent'
+  if (el.z_index == null) el.z_index = 2
+  el.align = z.alignment || 'left'
+  el.font_size = z.font_size
+  el.font_size_min = z.min_font_size
+  el.font_size_max = z.max_font_size
+  el.font_family = z.font_family
+  el.font_weight = z.font_weight
+  el.color = z.color
+  el.background_color = z.bg_color || 'transparent'
+  if (z.padding) el.padding = z.padding; else delete el.padding
+  if (z.border_radius) el.border_radius = z.border_radius; else delete el.border_radius
+  if (el.type === 'price') {
+    el.price_value = z.price_value || ''
+    el.text = z.price_value || ''
+    if (z.item_id) el.item_id = z.item_id; else delete el.item_id
+  } else if (el.type === 'menu_items' || el.type === 'specials') {
+    if (z.category_filter) el.category = z.category_filter; else delete el.category
+    if (z.item_ids && z.item_ids.length) el.item_ids = z.item_ids; else delete el.item_ids
+  } else {
+    el.text = z.label || ''
+  }
+  return el
 }
 
 /* Parse template config_json into a flat zones array (any historical shape) */
 function parseZones(configJson) {
-  if (!configJson) return []
-  let parsed = configJson
-  if (typeof parsed === 'string') {
-    try { parsed = JSON.parse(parsed) } catch { return [] }
-  }
+  const parsed = parseConfig(configJson)
+  if (!parsed) return []
   if (Array.isArray(parsed)) return parsed
-  if (parsed && Array.isArray(parsed.text_zones)) return parsed.text_zones
-  if (parsed && Array.isArray(parsed.zones)) return parsed.zones
+  if (Array.isArray(parsed.text_zones)) return parsed.text_zones
+  if (Array.isArray(parsed.zones)) return parsed.zones
+  if (isLayoutConfig(parsed)) {
+    return parsed.layout.elements
+      .filter(el => el && EDITABLE_ELEMENT_TYPES.includes(el.type))
+      .map(elementToZone)
+  }
   return []
 }
 
@@ -234,6 +336,19 @@ function ZoneContent({ zone, items }) {
     )
   }
 
+  // Price zones preview the exact amount the TV renders (bound item first)
+  if (zone.type === 'price') {
+    const bound = zone.item_id ? items.find(i => i.id === zone.item_id) : null
+    const raw = bound && bound.price != null && bound.price !== '' ? bound.price : zone.price_value
+    let txt = raw == null ? '' : String(raw).trim()
+    if (txt && /^[0-9.]/.test(txt)) txt = `$${Number(txt).toFixed(2)}`
+    return (
+      <div className="w-full h-full flex items-center overflow-hidden" style={{ ...style, fontWeight: zone.font_weight || 'bold' }}>
+        <span className="truncate w-full">{txt || '$0.00'}</span>
+      </div>
+    )
+  }
+
   // Text-ish zones render their label (sample) live
   const text = zone.label || SAMPLE_HEADERS[zone.type] || 'Sample text'
   return (
@@ -273,6 +388,14 @@ export default function ScreenDesigner() {
   const suppressMouseUntilRef = useRef(0)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  // Add-element list collapses as soon as something is selected, so the
+  // properties (the fields you actually type into) are never buried under it.
+  const [addOpen, setAddOpen] = useState(true)
+  const propsRef = useRef(null)   // properties block — scrolled into view on select
+  const panelRef = useRef(null)   // the right-hand / bottom panel container
+  // The template config exactly as loaded + which template it belongs to, so a
+  // layout-shaped config ({layout:{elements}}) is merged rather than flattened.
+  const originalConfigRef = useRef({ templateId: '', config: null })
   // Zoom / canvas sizing. The canvas is a FIXED-SIZE design surface (1920×1080
   // landscape / 1080×1920 portrait — the same coordinates the TV PWA renders),
   // displayed at `totalScale = baseScale * zoom`.
@@ -299,6 +422,10 @@ export default function ScreenDesigner() {
         setTemplateId(s.screen?.template_id || '')
         setTemplates(t.templates || [])
         const template = (t.templates || []).find(tm => tm.id === s.screen?.template_id)
+        originalConfigRef.current = {
+          templateId: template?.id || '',
+          config: parseConfig(template?.config_json),
+        }
         setZones(parseZones(template?.config_json))
         if (s.screen?.id) {
           const mi = await api.getMenuItems(s.screen.id)
@@ -314,6 +441,19 @@ export default function ScreenDesigner() {
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screenId])
+
+  // Selection is what the owner is trying to find: bring the properties block
+  // into view (panel top on desktop, scroll the page on a phone) immediately.
+  useEffect(() => {
+    if (!selectedId) return
+    if (panelRef.current) panelRef.current.scrollTop = 0
+    const el = propsRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    if (r.top < 0 || r.top > window.innerHeight - 140) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [selectedId])
 
   const selectedZone = zones.find(z => z.id === selectedId)
   const orientation = screen?.orientation || 'landscape'
@@ -378,6 +518,7 @@ export default function ScreenDesigner() {
     zone.y = clamp(c.y - zone.height / 2, 0, 100 - zone.height)
     setZones(prev => [...prev, zone])
     setSelectedId(zone.id)
+    setAddOpen(false)
   }
 
   const duplicateZone = (id) => {
@@ -413,6 +554,7 @@ export default function ScreenDesigner() {
     setZones(prev => {
       if (prev.length > 0) return prev
       const t = templates.find(tm => tm.id === id)
+      originalConfigRef.current = { templateId: id, config: parseConfig(t?.config_json) }
       return parseZones(t?.config_json)
     })
   }
@@ -600,7 +742,38 @@ export default function ScreenDesigner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  /* ── save ── */
+  /* ── save ──
+     A flat zones array is what this designer writes. When the screen's template
+     is layout-shaped ({layout:{elements}}) we write the zones back as elements
+     INSIDE the original object, keeping its background, animation, and every
+     element the designer cannot edit (logo, rules) byte-for-byte. */
+  const buildConfigJson = () => {
+    const base = originalConfigRef.current
+    const sameTemplate = base && base.templateId && base.templateId === templateId
+    if (sameTemplate && isLayoutConfig(base.config)) {
+      const origEls = base.config.layout.elements || []
+      const zoneById = new Map(zones.map(z => [z.id, z]))
+      const usedIds = new Set()
+      const outEls = []
+      origEls.forEach(el => {
+        if (!el || !EDITABLE_ELEMENT_TYPES.includes(el.type)) { outEls.push(el); return }
+        const z = zoneById.get(el.id)
+        if (z) { outEls.push(zoneToElement(z)); usedIds.add(z.id) }
+        // an editable element whose zone was deleted is dropped
+      })
+      zones.forEach(z => { if (!usedIds.has(z.id)) outEls.push(zoneToElement(z)) })
+      return JSON.stringify({
+        ...base.config,
+        layout: { ...base.config.layout, elements: outEls },
+      })
+    }
+    // plain zones array — never persist the designer's `_el` bookkeeping
+    return JSON.stringify(zones.map(z => {
+      const { _el, ...rest } = z
+      return rest
+    }))
+  }
+
   const handleSave = async () => {
     if (zones.length === 0 && templateId) {
       addToast('Add at least one zone before saving', 'error')
@@ -608,7 +781,7 @@ export default function ScreenDesigner() {
     }
     setSaving(true)
     try {
-      const configJson = JSON.stringify(zones)
+      const configJson = buildConfigJson()
       let savedTemplateId = templateId
 
       if (savedTemplateId) {
@@ -751,7 +924,7 @@ export default function ScreenDesigner() {
               return (
                 <div key={zone.id}
                   onPointerDown={e => startGesture(e, zone.id, 'move')}
-                  className={`absolute border-2 cursor-move ${selected ? 'border-amber-400 bg-amber-400/10 ring-2 ring-amber-400/30' : 'border-white/30 hover:border-white/60 bg-black/10'}`}
+                  className={`absolute cursor-move ${selected ? 'border-2 border-amber-400 ring-2 ring-amber-400/30' : 'border-2 border-dashed border-white/30 hover:border-white/60'}`}
                   style={{
                     left: `${zone.x || 0}%`,
                     top: `${zone.y || 0}%`,
@@ -760,7 +933,9 @@ export default function ScreenDesigner() {
                     zIndex: i,
                     touchAction: 'none',
                     padding: zoneBg ? '0.4em 0.6em' : '0.3em 0.4em',
-                    backgroundColor: zoneBg || 'rgba(0,0,0,0.15)',
+                    // No fill unless the zone actually has one — the designer
+                    // must show what the TV shows (bare text over the photo).
+                    backgroundColor: zoneBg || 'transparent',
                     borderRadius: selected ? '6px' : '4px',
                   }}
                 >
@@ -799,30 +974,39 @@ export default function ScreenDesigner() {
           </div>{/* /pan */}
         </div>{/* /canvas container */}
 
-        {/* ── Properties panel ── */}
-        <div className="w-full md:w-[340px] shrink-0 bg-brand-surface rounded-xl border border-brand-border/40 overflow-y-auto min-h-0">
-          <div className="px-4 py-3 border-b border-brand-border/40">
-            <h3 className="font-semibold text-brand-text text-sm">Elements</h3>
-          </div>
-
-          {/* Add elements */}
-          <div className="px-3 py-3 border-b border-brand-border/30 grid grid-cols-1 gap-1.5">
-            {ZONE_TYPES.map(t => (
-              <button key={t.value} onClick={() => addZone(t.value)}
-                className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-brand-border/50 hover:border-amber-400/50 hover:bg-amber-400/5 transition-colors text-left touch-manipulation">
-                <span className="text-lg">{t.icon}</span>
-                <span className="min-w-0">
-                  <span className="block text-xs font-semibold text-brand-text">{t.label}</span>
-                  <span className="block text-[10px] text-brand-muted truncate">{t.desc}</span>
-                </span>
-                <span className="ml-auto text-brand-muted/50 text-xs">＋</span>
-              </button>
-            ))}
+        {/* ── Properties panel ──
+             Ordered so the SELECTED ELEMENT'S FIELDS come first: the owner could
+             not find the window they type into because it sat below the whole
+             add-list and zone list, off the bottom of the screen. */}
+        <div ref={panelRef} className="w-full md:w-[340px] shrink-0 flex flex-col bg-brand-surface rounded-xl border border-brand-border/40 overflow-y-auto min-h-0">
+          {/* Add elements — collapses to a single row once something is
+              selected, so it never pushes the properties out of reach. */}
+          <div className="order-2 shrink-0 border-b border-brand-border/40">
+            <button onClick={() => setAddOpen(v => !v)} aria-expanded={addOpen}
+              className="w-full flex items-center justify-between px-4 py-3 touch-manipulation">
+              <h3 className="font-semibold text-brand-text text-sm">＋ Add element</h3>
+              <span className="text-brand-muted text-xs">{addOpen ? '▾' : '▸'}</span>
+            </button>
+            {addOpen && (
+              <div className="px-3 pb-3 grid grid-cols-1 gap-1.5">
+                {ZONE_TYPES.map(t => (
+                  <button key={t.value} onClick={() => addZone(t.value)}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-brand-border/50 hover:border-amber-400/50 hover:bg-amber-400/5 transition-colors text-left touch-manipulation">
+                    <span className="text-lg">{t.icon}</span>
+                    <span className="min-w-0">
+                      <span className="block text-xs font-semibold text-brand-text">{t.label}</span>
+                      <span className="block text-[10px] text-brand-muted truncate">{t.desc}</span>
+                    </span>
+                    <span className="ml-auto text-brand-muted/50 text-xs">＋</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Existing zones — clickable list for easy selection */}
           {zones.length > 0 && (
-            <div className="px-3 py-3 border-b border-brand-border/30">
+            <div className="order-3 shrink-0 px-3 py-3 border-b border-brand-border/30">
               <h4 className="text-[10px] font-semibold uppercase tracking-wider text-brand-muted px-1 mb-2">
                 Your zones ({zones.length})
               </h4>
@@ -856,9 +1040,11 @@ export default function ScreenDesigner() {
 
           {/* Selected zone properties */}
           {selectedZone ? (
-            <div className="p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-brand-text">Zone properties</h4>
+            <div ref={propsRef} className="order-1 shrink-0 p-4 space-y-4">
+              <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-brand-surface border-b border-brand-border/40 flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-brand-text truncate">
+                  Edit {ZONE_TYPES.find(t => t.value === selectedZone.type)?.label || 'element'}
+                </h4>
                 <div className="flex gap-1">
                   <button onClick={() => moveZoneDepth(selectedZone.id, -1)} title="Bring forward" className="w-8 h-8 rounded-lg border border-brand-border/50 text-brand-muted hover:text-brand-text">▲</button>
                   <button onClick={() => moveZoneDepth(selectedZone.id, 1)} title="Send backward" className="w-8 h-8 rounded-lg border border-brand-border/50 text-brand-muted hover:text-brand-text">▼</button>
@@ -867,12 +1053,67 @@ export default function ScreenDesigner() {
                 </div>
               </div>
 
+              {/* Price element: the amount, and an optional link to a real
+                  menu item so the board follows the Edit Menu page. */}
+              {selectedZone.type === 'price' && (() => {
+                const boundItem = selectedZone.item_id
+                  ? menuItems.find(i => i.id === selectedZone.item_id)
+                  : null
+                const shownValue = boundItem && boundItem.price != null && boundItem.price !== ''
+                  ? String(boundItem.price)
+                  : (selectedZone.price_value || '')
+                return (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-brand-muted mb-1">Price amount</label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-brand-muted text-sm font-semibold">$</span>
+                        <input
+                          className="input-field text-base font-bold tabular-nums"
+                          inputMode="decimal"
+                          placeholder="12.50"
+                          value={shownValue}
+                          disabled={!!boundItem}
+                          onChange={e => updateZone(selectedZone.id, { price_value: e.target.value })}
+                        />
+                      </div>
+                      <p className="text-[10px] text-brand-muted/70 mt-1">
+                        {boundItem
+                          ? `Following “${boundItem.name}” — change its price on the Edit Menu page and the board updates.`
+                          : 'Type the amount as it should read on the TV. 12.50 shows as $12.50.'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-brand-muted mb-1">Link to a menu item (optional)</label>
+                      <select className="input-field text-xs"
+                        value={selectedZone.item_id || ''}
+                        onChange={e => updateZone(selectedZone.id, { item_id: e.target.value })}>
+                        <option value="">Typed price — not linked</option>
+                        {menuItems.map(i => (
+                          <option key={i.id} value={i.id}>
+                            {i.name}{typeof i.price === 'number' ? ` — $${Number(i.price).toFixed(2)}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {menuItems.length === 0 && (
+                        <p className="text-[10px] text-brand-muted/70 mt-1">
+                          No menu items on this screen yet — the typed amount is used.
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )
+              })()}
+
               {/* Label / sample text */}
-              <div>
-                <label className="block text-xs font-medium text-brand-muted mb-1">Label / sample text</label>
-                <input className="input-field text-xs" value={selectedZone.label || ''}
-                  onChange={e => updateZone(selectedZone.id, { label: e.target.value })} />
-              </div>
+              {selectedZone.type !== 'price' && (
+                <div>
+                  <label className="block text-xs font-medium text-brand-muted mb-1">Label / sample text</label>
+                  <input className="input-field text-xs" value={selectedZone.label || ''}
+                    onChange={e => updateZone(selectedZone.id, { label: e.target.value })} />
+                </div>
+              )}
 
               {/* Position & size — precise (NumberField: type, clear & replace) */}
               <div className="grid grid-cols-4 gap-2">
@@ -970,20 +1211,43 @@ export default function ScreenDesigner() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-brand-muted mb-1">Zone background</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {BG_COLORS.map(c => (
+                <label className="block text-xs font-medium text-brand-muted mb-1">Background behind the text</label>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {/* None is the default: bare letters over the board, no box. */}
+                  <button onClick={() => updateZone(selectedZone.id, { bg_color: '' })}
+                    className={`h-6 px-2.5 rounded-full border-2 text-[10px] font-semibold transition-colors ${!(selectedZone.bg_color && selectedZone.bg_color !== 'transparent') ? 'border-amber-400 text-amber-300 bg-amber-400/10' : 'border-white/20 text-brand-muted hover:text-brand-text'}`}>
+                    None
+                  </button>
+                  {BG_COLORS.filter(c => c.color !== 'transparent').map(c => (
                     <button key={c.label} title={c.label}
-                      onClick={() => updateZone(selectedZone.id, { bg_color: c.color === 'transparent' ? '' : c.color })}
-                      className={`w-6 h-6 rounded-full border-2 ${(selectedZone.bg_color || '') === (c.color === 'transparent' ? '' : c.color) ? 'border-amber-400 scale-110' : 'border-white/20'}`}
-                      style={{ backgroundColor: c.color === 'transparent' ? 'transparent' : c.color, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)' }}>
-                      {c.color === 'transparent' && <span className="text-[9px] text-brand-muted font-bold">∅</span>}
-                    </button>
+                      onClick={() => updateZone(selectedZone.id, { bg_color: c.color })}
+                      className={`w-6 h-6 rounded-full border-2 ${selectedZone.bg_color === c.color ? 'border-amber-400 scale-110' : 'border-white/20'}`}
+                      style={{ backgroundColor: c.color, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.15)' }} />
                   ))}
-                  <input type="color" className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent"
+                  <input type="color" title="Pick a colour" className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent"
                     value={/^#[0-9a-fA-F]{6}$/.test(selectedZone.bg_color || '') ? selectedZone.bg_color : '#000000'}
                     onChange={e => updateZone(selectedZone.id, { bg_color: e.target.value })} />
                 </div>
+                {selectedZone.bg_color && selectedZone.bg_color !== 'transparent' ? (
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <div>
+                      <label className="block text-[10px] text-brand-muted mb-0.5">Padding</label>
+                      <input className="input-field text-xs" placeholder="0.1em 0.4em"
+                        value={selectedZone.padding || ''}
+                        onChange={e => updateZone(selectedZone.id, { padding: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-brand-muted mb-0.5">Corner radius</label>
+                      <input className="input-field text-xs" placeholder="0.22em"
+                        value={selectedZone.border_radius || ''}
+                        onChange={e => updateZone(selectedZone.id, { border_radius: e.target.value })} />
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-brand-muted/70 mt-1">
+                    No box — the letters sit straight on the board. Pick a colour to put a panel behind them.
+                  </p>
+                )}
               </div>
 
               {/* Menu binding */}
@@ -1040,9 +1304,9 @@ export default function ScreenDesigner() {
               </label>
             </div>
           ) : (
-            <div className="p-8 text-center text-brand-muted/60 text-sm">
+            <div className="order-1 shrink-0 p-8 text-center text-brand-muted/60 text-sm">
               <div className="text-3xl mb-2">👆</div>
-              Tap a zone on the canvas — or add one above — to edit its
+              Tap an element on the board — or add one below — to edit its
               position, size, font and content.
             </div>
           )}

@@ -115,6 +115,20 @@ html, body {
   text-shadow: none;
 }
 
+/* Standalone price (owner request): bare letters/numbers over the board photo.
+   No fill, no border, no box shadow unless the owner enables a background --
+   in which case applyBoxStyles sets an inline background + padding + radius,
+   and the inline values win over these rules. */
+.layout-element.lx-price {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  font-variant-numeric: tabular-nums;
+  text-shadow:
+    0 1px 2px rgba(0,0,0,0.85),
+    0 0 10px rgba(0,0,0,0.55);
+}
+
 .layout-element.has-background {
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
