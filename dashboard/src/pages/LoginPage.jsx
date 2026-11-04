@@ -52,19 +52,6 @@ export default function LoginPage() {
         <div className="relative rounded-2xl bg-brand-surface p-8 shadow-2xl border border-brand-border/30">
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center mb-5">
-              <svg width="56" height="56" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="4" y="4" width="112" height="112" rx="20" stroke="url(#login-logo-grad)" strokeWidth="2.5" />
-                <rect x="14" y="14" width="92" height="92" rx="10" fill="#1A1A1A" stroke="#2A2A2A" strokeWidth="1" />
-                <polygon points="52,42 52,78 78,60" fill="url(#login-logo-grad)" />
-                <defs>
-                  <linearGradient id="login-logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#8B5CF6" />
-                    <stop offset="100%" stopColor="#A78BFA" />
-                  </linearGradient>
-                </defs>
-              </svg>
-            </div>
             <h1 className="font-heading text-2xl font-bold text-brand-text">
               <span className="text-brand-primary">L</span>umenu
             </h1>
