@@ -16,6 +16,10 @@ import menuItemRoutes from './routes/menuItems.js';
 import scheduleRoutes from './routes/schedules.js';
 import tvDisplayRoutes from './routes/tvDisplay.js';
 import snapshotRoutes from './routes/snapshots.js';
+import {
+  recoverStuckSnapshots,
+  startStuckSnapshotSweeper,
+} from './lib/snapshotRecovery.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -104,6 +108,11 @@ initWebSocket(server);
 
 // Initialize database on startup
 getDb();
+
+// Never leave a snapshot at 'processing' forever: fail rows orphaned by a
+// restart (age-guarded so in-flight runs are untouched), then keep sweeping.
+recoverStuckSnapshots();
+startStuckSnapshotSweeper();
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Lumenu Server running on http://0.0.0.0:${PORT}`);

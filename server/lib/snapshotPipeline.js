@@ -32,6 +32,8 @@ import {
   RETAKE_MESSAGE,
   NO_TEXT_MESSAGE,
 } from './menuParse.js';
+import { markSnapshotFailed, TIMEOUT_MESSAGE, UNEXPECTED_MESSAGE } from './snapshotRecovery.js';
+import { measurePolarity } from './menuImage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TESSDATA_DIR = path.join(__dirname, '..', 'tessdata');
@@ -140,6 +142,14 @@ export async function preprocessForOcr(filePath, opts = {}) {
   img.grayscale();
   img.normalize();
   img.contrast(0.3);
+
+  // CHALKBOARD POLARITY: a dark-background board (light chalk on near-black)
+  // must be inverted so OCR sees dark ink on a light page — the LSTM is trained
+  // on that, and Otsu on a raw chalkboard binarizes to WHITE-on-BLACK, i.e. the
+  // worst case for it. Paper menus (median ≥ 128) are left untouched.
+  if (opts.invert !== false && measurePolarity(img).darkBackground) {
+    img.invert();
+  }
 
   // 2× when the photo is a small/medium board photo — menu glyphs land in the
   // 30–60px x-height band the LSTM reads best. Skip for huge already-crisp
@@ -364,7 +374,33 @@ function buildZones(orientation, restaurantName, priceLayout = null) {
 // gateMenuData — otherwise the snapshot is 'failed' with a clear message, so
 // the dashboard NEVER shows junk words/prices as a finished mockup.
 // ---------------------------------------------------------------------------
+const PIPELINE_TIMEOUT_MS = 150000; // hard cap; the dashboard polls for 160s
+
+/**
+ * Public entry point. EVERY outcome is terminal: the inner runner records
+ * 'ready' or 'failed', and anything that escapes it (throw, hung OCR worker,
+ * server shutdown mid-run) is caught here and written as 'failed' with an
+ * actionable message. A snapshot row must never sit at 'processing' forever.
+ */
 export async function runSnapshotPipeline(snapshotId) {
+  let timer = null;
+  try {
+    await Promise.race([
+      runSnapshotPipelineInner(snapshotId),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new SnapshotPipelineError(TIMEOUT_MESSAGE)), PIPELINE_TIMEOUT_MS);
+      }),
+    ]);
+  } catch (err) {
+    const msg = err instanceof SnapshotPipelineError ? err.message : UNEXPECTED_MESSAGE;
+    console.error(`[snapshots] pipeline failed ${snapshotId}:`, err?.message || err);
+    markSnapshotFailed(snapshotId, msg);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function runSnapshotPipelineInner(snapshotId) {
   const db = getDb();
   const snapshot = db.prepare('SELECT * FROM snapshots WHERE id = ?').get(snapshotId);
   if (!snapshot) return;
@@ -488,9 +524,9 @@ export async function runSnapshotPipeline(snapshotId) {
     const msg = err instanceof SnapshotPipelineError
       ? err.message
       : `Snapshot processing failed: ${err.message}`;
-    db.prepare(
-      `UPDATE snapshots SET status = 'failed', error_message = ?, updated_at = datetime('now') WHERE id = ?`
-    ).run(msg, snapshotId);
+    console.error(`[snapshots] pipeline error ${snapshotId}:`, err?.message || err);
+    // Idempotent: only writes when the row is still 'processing'.
+    markSnapshotFailed(snapshotId, msg);
   } finally {
     for (const p of tmpPaths) { try { fs.unlinkSync(p); } catch { /* noop */ } }
   }
