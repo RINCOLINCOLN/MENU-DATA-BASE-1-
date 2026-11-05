@@ -39,7 +39,7 @@ const BG_COLORS = [
 ]
 
 const ZONE_TYPES = [
-  { value: 'price', label: 'Price', icon: '💵', desc: 'One price, e.g. $12.50 — sits on your photo' },
+  { value: 'price', label: 'Price', icon: '💵', desc: 'One price, shown exactly as typed (e.g. 12.50)' },
   { value: 'menu_items', label: 'Menu Items', icon: '🍽️', desc: 'Live item list with prices' },
   { value: 'header', label: 'Header / Text', icon: '🔤', desc: 'Heading or free text' },
   { value: 'category_header', label: 'Category Title', icon: '🏷️', desc: 'Bold category heading' },
@@ -336,15 +336,23 @@ function ZoneContent({ zone, items }) {
     )
   }
 
-  // Price zones preview the exact amount the TV renders (bound item first)
+  // Price zones preview the exact amount the TV renders (bound item first).
+  // Mirrors tv-display/layout-model.js priceText(): a LINKED menu item keeps
+  // its $0.00 currency formatting, a TYPED amount is printed verbatim — the
+  // owner writes exactly what appears, no symbol or decimals are added.
   if (zone.type === 'price') {
     const bound = zone.item_id ? items.find(i => i.id === zone.item_id) : null
-    const raw = bound && bound.price != null && bound.price !== '' ? bound.price : zone.price_value
-    let txt = raw == null ? '' : String(raw).trim()
-    if (txt && /^[0-9.]/.test(txt)) txt = `$${Number(txt).toFixed(2)}`
+    let txt
+    if (bound && bound.price != null && bound.price !== '') {
+      const n = Number(bound.price)
+      txt = isNaN(n) ? String(bound.price) : `${n.toFixed(2)}`
+    } else {
+      const raw = zone.price_value != null && zone.price_value !== '' ? zone.price_value : zone.label
+      txt = raw == null ? '' : String(raw).trim()
+    }
     return (
       <div className="w-full h-full flex items-center overflow-hidden" style={{ ...style, fontWeight: zone.font_weight || 'bold' }}>
-        <span className="truncate w-full">{txt || '$0.00'}</span>
+        <span className="truncate w-full">{txt}</span>
       </div>
     )
   }
@@ -407,6 +415,13 @@ export default function ScreenDesigner() {
   const [zoom, setZoom] = useState(1)
   const panRef = useRef(null)   // scroll/pane that the board fits within
   const canvasRef = useRef(null) // the scaled design-space canvas (drag math target)
+  // Mirrors of the latest zones / selection for the window keydown handler — a
+  // listener with a stable identity would otherwise capture stale values.
+  const zonesRef = useRef(zones)
+  zonesRef.current = zones
+  const selectedIdRef = useRef(selectedId)
+  selectedIdRef.current = selectedId
+  const clipRef = useRef(null)   // last copied element (Cmd/Ctrl+C → Cmd/Ctrl+V)
 
   // Load screen + templates + menu items
   useEffect(() => {
@@ -521,15 +536,69 @@ export default function ScreenDesigner() {
     setAddOpen(false)
   }
 
-  const duplicateZone = (id) => {
-    setZones(prev => {
-      const src = prev.find(z => z.id === id)
-      if (!src) return prev
-      const copy = { ...src, id: `zone-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`, x: (src.x || 0) + 4, y: (src.y || 0) + 4 }
-      setSelectedId(copy.id)
-      return [...prev, copy]
-    })
-  }
+  /* Exact copy of an element: everything visual comes along (font family /
+     weight / size, colour, fill / padding / radius, alignment, auto-shrink
+     min & max), nudged a few % so it is visibly separate, and selected at once
+     so it can be dragged straight into place. A link to a menu item is KEPT on
+     the copy — the whole point is repeating one price's look across the board,
+     and the copy can be re-pointed in the properties panel. */
+  const addCopyOf = useCallback((src) => {
+    if (!src) return null
+    const newId = `zone-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+    const w = src.width || 20
+    const h = src.height || 10
+    const copy = {
+      ...src,
+      id: newId,
+      x: clamp((src.x || 0) + 4, 0, Math.max(0, 100 - w)),
+      y: clamp((src.y || 0) + 4, 0, Math.max(0, 100 - h)),
+    }
+    // Keep the properties of the original layout element the designer does not
+    // edit (z_index, animation…) but give the copy its own id, so saving never
+    // writes two elements sharing one id.
+    if (src._el) copy._el = { ...src._el, id: newId }
+    setZones(prev => [...prev, copy])
+    setSelectedId(newId)
+    return copy
+  }, [])
+
+  const duplicateZone = useCallback((id) => {
+    addCopyOf(zonesRef.current.find(z => z.id === id))
+  }, [addCopyOf])
+
+  // Keyboard: Cmd/Ctrl+D duplicates the selected element; Cmd/Ctrl+C then
+  // Cmd/Ctrl+V copies and pastes it. Ignored while the owner is typing in a
+  // field, so normal text copy/paste (and the browser's own shortcuts) keep
+  // working exactly as before.
+  useEffect(() => {
+    const isTyping = (node) => {
+      if (!node || !node.tagName) return false
+      const tag = node.tagName.toLowerCase()
+      return tag === 'input' || tag === 'textarea' || tag === 'select' || node.isContentEditable === true
+    }
+    const onKey = (e) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return
+      const key = (e.key || '').toLowerCase()
+      if (key !== 'd' && key !== 'c' && key !== 'v') return
+      if (isTyping(e.target) || isTyping(document.activeElement)) return
+      const sel = zonesRef.current.find(z => z.id === selectedIdRef.current)
+      if (key === 'd') {
+        if (!sel) return
+        e.preventDefault()
+        addCopyOf(sel)
+      } else if (key === 'c') {
+        if (!sel) return
+        e.preventDefault()
+        clipRef.current = sel
+      } else {
+        if (!clipRef.current) return
+        e.preventDefault()
+        addCopyOf(clipRef.current)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [addCopyOf])
 
   const deleteZone = (id) => {
     setZones(prev => prev.filter(z => z.id !== id))
@@ -1048,9 +1117,24 @@ export default function ScreenDesigner() {
                 <div className="flex gap-1">
                   <button onClick={() => moveZoneDepth(selectedZone.id, -1)} title="Bring forward" className="w-8 h-8 rounded-lg border border-brand-border/50 text-brand-muted hover:text-brand-text">▲</button>
                   <button onClick={() => moveZoneDepth(selectedZone.id, 1)} title="Send backward" className="w-8 h-8 rounded-lg border border-brand-border/50 text-brand-muted hover:text-brand-text">▼</button>
-                  <button onClick={() => duplicateZone(selectedZone.id)} title="Duplicate" className="w-8 h-8 rounded-lg border border-brand-border/50 text-brand-muted hover:text-brand-text">⧉</button>
                   <button onClick={() => deleteZone(selectedZone.id)} title="Delete" className="w-8 h-8 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10">🗑</button>
                 </div>
+              </div>
+
+              {/* Duplicate — labelled and full-width, because the point of it is
+                  repeating one element's size and look across the menu. */}
+              <div>
+                <button
+                  onClick={() => duplicateZone(selectedZone.id)}
+                  title="Duplicate this element (Cmd/Ctrl+D)"
+                  className="w-full min-h-[44px] flex items-center justify-center gap-2 rounded-xl border border-amber-400/50 bg-amber-400/10 text-amber-300 text-sm font-semibold hover:bg-amber-400/20 active:scale-[0.99] transition"
+                >
+                  <span aria-hidden>⧉</span> Duplicate
+                  <span className="text-[10px] font-normal text-amber-300/70 ml-1">⌘/Ctrl+D</span>
+                </button>
+                <p className="text-[10px] text-brand-muted/70 mt-1">
+                  Copies this element exactly — same font, size, colour and box — then nudges it so you can drag it into place.
+                </p>
               </div>
 
               {/* Price element: the amount, and an optional link to a real
@@ -1066,21 +1150,18 @@ export default function ScreenDesigner() {
                   <>
                     <div>
                       <label className="block text-xs font-medium text-brand-muted mb-1">Price amount</label>
-                      <div className="flex items-center gap-2">
-                        <span className="text-brand-muted text-sm font-semibold">$</span>
-                        <input
-                          className="input-field text-base font-bold tabular-nums"
-                          inputMode="decimal"
-                          placeholder="12.50"
-                          value={shownValue}
-                          disabled={!!boundItem}
-                          onChange={e => updateZone(selectedZone.id, { price_value: e.target.value })}
-                        />
-                      </div>
+                      <input
+                        className="input-field text-base font-bold tabular-nums"
+                        inputMode="text"
+                        placeholder="12.50"
+                        value={shownValue}
+                        disabled={!!boundItem}
+                        onChange={e => updateZone(selectedZone.id, { price_value: e.target.value })}
+                      />
                       <p className="text-[10px] text-brand-muted/70 mt-1">
                         {boundItem
                           ? `Following “${boundItem.name}” — change its price on the Edit Menu page and the board updates.`
-                          : 'Type the amount as it should read on the TV. 12.50 shows as $12.50.'}
+                          : 'Shown on the TV exactly as you type it — no currency symbol is added. Add “$” or “€” yourself if you want one.'}
                       </p>
                     </div>
 

@@ -447,8 +447,14 @@
    *      the Edit Menu page then updates the board with no re-design
    *   2. the typed price_value
    *   3. el.text (older saves)
-   * Plain numbers are formatted $0.00; anything that already starts with a
-   * non-digit ("$12", "Market price") is printed as typed.
+   *
+   * Two different rules on purpose:
+   *   - LINKED price (item_id): a real currency value from menu_items, so it
+   *     keeps the familiar $0.00 formatting.
+   *   - TYPED price: printed VERBATIM. The owner writes exactly what should
+   *     appear on the board - no currency symbol is added, no decimals are
+   *     forced, nothing is reformatted. "12.50" shows "12.50", "$12.50" shows
+   *     "$12.50", "12" shows "12", "Market price" shows "Market price".
    */
   function priceText(el, items) {
     if (el.item_id && Array.isArray(items)) {
@@ -462,11 +468,7 @@
       }
     }
     var raw = el.price_value != null && el.price_value !== '' ? el.price_value : el.text;
-    raw = raw == null ? '' : String(raw).trim();
-    if (!raw) return '';
-    if (/^[^0-9]/.test(raw)) return raw;
-    var n = Number(raw.replace(/[^0-9.]/g, ''));
-    return isNaN(n) ? raw : formatPrice(n);
+    return raw == null ? '' : String(raw).trim();
   }
 
   function renderPriceElement(el, div, items) {
